@@ -98,7 +98,8 @@ public class DynamicCrudService : IDynamicCrudService
         await using var conn = _connectionFactory.CreateConnection(connection, database);
         await conn.OpenAsync(cancellationToken);
 
-        return await QueryRowByKeysAsync(conn, null, schema, table, preparedKeys, cancellationToken);
+        var colNames = columns.Select(c => c.Name);
+        return await QueryRowByKeysAsync(conn, null, schema, table, preparedKeys, cancellationToken, colNames);
     }
 
     public async Task<RowOperationResult> CreateRowAsync(
@@ -170,7 +171,7 @@ public class DynamicCrudService : IDynamicCrudService
             IDictionary<string, object?>? createdRow = null;
             if (queryKeys.Count > 0)
             {
-                createdRow = await QueryRowByKeysAsync(conn, tx, schema, table, queryKeys, cancellationToken);
+                createdRow = await QueryRowByKeysAsync(conn, tx, schema, table, queryKeys, cancellationToken, columns.Select(c => c.Name));
             }
 
             await tx.CommitAsync(cancellationToken);
@@ -260,12 +261,39 @@ public class DynamicCrudService : IDynamicCrudService
 
         try
         {
+            var colNames = columns.Select(c => c.Name).ToList();
+
             // 1. Fetch BEFORE snapshot
-            var beforeRow = await QueryRowByKeysAsync(conn, tx, schema, table, preparedKeys, cancellationToken);
+            var beforeRow = await QueryRowByKeysAsync(conn, tx, schema, table, preparedKeys, cancellationToken, colNames);
             if (beforeRow == null)
             {
                 await tx.RollbackAsync(cancellationToken);
                 throw new DynamicCrudException("ROW_NOT_FOUND", "The specified row was not found.", HttpStatusCode.NotFound);
+            }
+
+            // Check for No-Op Update: if all updated fields have identical values to beforeRow, return immediately
+            var beforeRowDict = new Dictionary<string, object?>(beforeRow, StringComparer.OrdinalIgnoreCase);
+            bool hasRealChanges = false;
+            foreach (var (colName, newVal) in updateValues)
+            {
+                beforeRowDict.TryGetValue(colName, out var oldVal);
+                if (!_valueConverter.AreValuesEqual(oldVal, newVal))
+                {
+                    hasRealChanges = true;
+                    break;
+                }
+            }
+
+            if (!hasRealChanges)
+            {
+                await tx.RollbackAsync(cancellationToken);
+                return new RowOperationResult
+                {
+                    Success = true,
+                    AffectedRows = 0,
+                    Data = new Dictionary<string, object?>(beforeRowDict),
+                    Message = "No fields were changed."
+                };
             }
 
             // 2. Execute UPDATE
@@ -293,7 +321,7 @@ public class DynamicCrudService : IDynamicCrudService
             }
 
             // 4. Fetch AFTER snapshot
-            var afterRow = await QueryRowByKeysAsync(conn, tx, schema, table, preparedKeys, cancellationToken);
+            var afterRow = await QueryRowByKeysAsync(conn, tx, schema, table, preparedKeys, cancellationToken, colNames);
 
             await tx.CommitAsync(cancellationToken);
 
@@ -380,7 +408,7 @@ public class DynamicCrudService : IDynamicCrudService
         try
         {
             // 1. Fetch BEFORE snapshot
-            var beforeRow = await QueryRowByKeysAsync(conn, tx, schema, table, preparedKeys, cancellationToken);
+            var beforeRow = await QueryRowByKeysAsync(conn, tx, schema, table, preparedKeys, cancellationToken, columns.Select(c => c.Name));
             if (beforeRow == null)
             {
                 await tx.RollbackAsync(cancellationToken);
@@ -544,6 +572,7 @@ public class DynamicCrudService : IDynamicCrudService
         string schema,
         string table,
         string column,
+        string? search = null,
         int top = 50,
         CancellationToken cancellationToken = default)
     {
@@ -554,12 +583,18 @@ public class DynamicCrudService : IDynamicCrudService
             throw new KeyNotFoundException($"Column '{column}' was not found in table '{schema}.{table}'.");
         }
 
-        var sql = _sqlBuilder.BuildLookupSql(schema, table, colMeta.Name, top);
+        var sql = _sqlBuilder.BuildLookupSql(schema, table, colMeta.Name, search, top);
 
         await using var conn = _connectionFactory.CreateConnection(connection, database);
         await conn.OpenAsync(cancellationToken);
 
-        var rows = await conn.QueryAsync(new CommandDefinition(sql, cancellationToken: cancellationToken));
+        var parameters = new DynamicParameters();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            parameters.Add("@search", $"%{search.Trim()}%");
+        }
+
+        var rows = await conn.QueryAsync(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
         var result = new List<LookupItemDto>();
 
         foreach (var r in rows)
@@ -651,9 +686,10 @@ public class DynamicCrudService : IDynamicCrudService
         string schema,
         string table,
         IReadOnlyDictionary<string, object?> keys,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IEnumerable<string>? selectColumns = null)
     {
-        var sql = _sqlBuilder.BuildSelectByKeysSql(schema, table, keys.Keys);
+        var sql = _sqlBuilder.BuildSelectByKeysSql(schema, table, keys.Keys, selectColumns);
         var parameters = new DynamicParameters();
         foreach (var (k, v) in keys)
         {

@@ -2,7 +2,11 @@ namespace DBHub.Api.Services.Crud;
 
 public interface IDynamicCrudSqlBuilder
 {
-    string BuildSelectByKeysSql(string schema, string table, IEnumerable<string> keyColumns);
+    string BuildSelectByKeysSql(
+        string schema,
+        string table,
+        IEnumerable<string> keyColumns,
+        IEnumerable<string>? selectColumns = null);
 
     string BuildInsertSql(
         string schema,
@@ -27,5 +31,6 @@ public interface IDynamicCrudSqlBuilder
         string schema,
         string table,
         string column,
+        string? search = null,
         int top = 50);
 }

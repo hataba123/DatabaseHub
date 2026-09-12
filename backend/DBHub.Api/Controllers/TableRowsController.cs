@@ -128,6 +128,7 @@ public class TableRowsController : ControllerBase
     }
 
     [HttpPut("rows")]
+    [HttpPatch("rows")]
     public async Task<ActionResult<RowOperationResult>> UpdateRow(
         string connectionId,
         string database,
@@ -239,6 +240,7 @@ public class TableRowsController : ControllerBase
         string schema,
         string table,
         string column,
+        [FromQuery] string? q = null,
         [FromQuery] int top = 50,
         CancellationToken cancellationToken = default)
     {
@@ -251,7 +253,7 @@ public class TableRowsController : ControllerBase
         }
 
         var connection = await GetConnectionOrThrowAsync(connectionId, cancellationToken);
-        var lookups = await _crudService.GetLookupValuesAsync(connection, database, schema, table, column, top, cancellationToken);
+        var lookups = await _crudService.GetLookupValuesAsync(connection, database, schema, table, column, q, top, cancellationToken);
         return Ok(lookups);
     }
 

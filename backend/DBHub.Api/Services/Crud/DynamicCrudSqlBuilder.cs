@@ -5,13 +5,28 @@ namespace DBHub.Api.Services.Crud;
 
 public class DynamicCrudSqlBuilder : IDynamicCrudSqlBuilder
 {
-    public string BuildSelectByKeysSql(string schema, string table, IEnumerable<string> keyColumns)
+    public string BuildSelectByKeysSql(
+        string schema,
+        string table,
+        IEnumerable<string> keyColumns,
+        IEnumerable<string>? selectColumns = null)
     {
         var quotedSchema = SqlIdentifierValidator.ValidateAndQuote(schema, nameof(schema));
         var quotedTable = SqlIdentifierValidator.ValidateAndQuote(table, nameof(table));
 
         var sb = new StringBuilder();
-        sb.Append($"SELECT * FROM {quotedSchema}.{quotedTable} WHERE ");
+        sb.Append("SELECT ");
+        var colList = selectColumns?.ToList();
+        if (colList != null && colList.Count > 0)
+        {
+            var quotedCols = colList.Select(c => SqlIdentifierValidator.ValidateAndQuote(c));
+            sb.Append(string.Join(", ", quotedCols));
+        }
+        else
+        {
+            sb.Append('*');
+        }
+        sb.Append($" FROM {quotedSchema}.{quotedTable} WHERE ");
 
         var conditions = keyColumns.Select(col =>
         {
@@ -133,6 +148,7 @@ public class DynamicCrudSqlBuilder : IDynamicCrudSqlBuilder
         string schema,
         string table,
         string column,
+        string? search = null,
         int top = 50)
     {
         var quotedSchema = SqlIdentifierValidator.ValidateAndQuote(schema, nameof(schema));
@@ -140,6 +156,13 @@ public class DynamicCrudSqlBuilder : IDynamicCrudSqlBuilder
         var quotedCol = SqlIdentifierValidator.ValidateAndQuote(column);
 
         var safeTop = Math.Clamp(top, 1, 100);
-        return $"SELECT DISTINCT TOP {safeTop} {quotedCol} AS [Value], CAST({quotedCol} AS NVARCHAR(250)) AS [Label] FROM {quotedSchema}.{quotedTable} WHERE {quotedCol} IS NOT NULL ORDER BY [Label];";
+        var sb = new StringBuilder();
+        sb.Append($"SELECT DISTINCT TOP {safeTop} {quotedCol} AS [Value], CAST({quotedCol} AS NVARCHAR(250)) AS [Label] FROM {quotedSchema}.{quotedTable} WHERE {quotedCol} IS NOT NULL");
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            sb.Append($" AND CAST({quotedCol} AS NVARCHAR(MAX)) LIKE @search");
+        }
+        sb.Append(" ORDER BY [Label];");
+        return sb.ToString();
     }
 }

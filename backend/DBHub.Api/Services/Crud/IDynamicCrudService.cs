@@ -70,6 +70,7 @@ public interface IDynamicCrudService
         string schema,
         string table,
         string column,
+        string? search = null,
         int top = 50,
         CancellationToken cancellationToken = default);
 

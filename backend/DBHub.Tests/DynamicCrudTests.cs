@@ -195,4 +195,72 @@ public class DynamicCrudTests
 
         Assert.Equal("MISSING_KEY_VALUE", ex.ErrorCode);
     }
+
+    [Fact]
+    public void BuildSelectByKeysSql_WithExplicitColumns_SelectsOnlyQuotedColumns()
+    {
+        var sql = _sqlBuilder.BuildSelectByKeysSql("dbo", "Users", new[] { "Id" }, new[] { "Id", "Username", "Email" });
+        Assert.Equal("SELECT [Id], [Username], [Email] FROM [dbo].[Users] WHERE [Id] = @key_Id;", sql);
+    }
+
+    [Fact]
+    public void BuildLookupSql_WithSearch_IncludesLikeFilter()
+    {
+        var sql = _sqlBuilder.BuildLookupSql("dbo", "Products", "Category", search: "Elec", top: 10);
+        Assert.Equal("SELECT DISTINCT TOP 10 [Category] AS [Value], CAST([Category] AS NVARCHAR(250)) AS [Label] FROM [dbo].[Products] WHERE [Category] IS NOT NULL AND CAST([Category] AS NVARCHAR(MAX)) LIKE @search ORDER BY [Label];", sql);
+    }
+
+    [Fact]
+    public void PrepareWritableValues_UnknownColumn_ThrowsInvalidColumn()
+    {
+        var columns = new List<ColumnItem>
+        {
+            new() { Name = "Id", DataType = "int", IsPrimaryKey = true },
+            new() { Name = "Name", DataType = "nvarchar" }
+        };
+
+        var input = new Dictionary<string, object?> { { "NoSuchColumn", "hacker" } };
+        var ex = Assert.Throws<DynamicCrudException>(() =>
+            _valueConverter.PrepareWritableValues(input, columns, isInsert: true));
+
+        Assert.Equal("INVALID_COLUMN", ex.ErrorCode);
+    }
+
+    [Fact]
+    public void PrepareWritableValues_UpdatePrimaryKey_ThrowsPrimaryKeyReadOnly()
+    {
+        var columns = new List<ColumnItem>
+        {
+            new() { Name = "Id", DataType = "int", IsPrimaryKey = true },
+            new() { Name = "Name", DataType = "nvarchar" }
+        };
+
+        var input = new Dictionary<string, object?> { { "Id", 5 }, { "Name", "Bob" } };
+        var ex = Assert.Throws<DynamicCrudException>(() =>
+            _valueConverter.PrepareWritableValues(input, columns, isInsert: false));
+
+        Assert.Equal("PRIMARY_KEY_READONLY", ex.ErrorCode);
+    }
+
+    [Fact]
+    public void ConvertAndValidate_DecimalExceedingIntegerDigits_ThrowsDecimalOutOfRange()
+    {
+        // precision: 5, scale: 2 -> max integer digits = 3 (e.g. 999.99)
+        var col = new ColumnItem { Name = "Price", DataType = "decimal", Precision = 5, Scale = 2 };
+        var ex = Assert.Throws<DynamicCrudException>(() =>
+            _valueConverter.ConvertAndValidate("1234.50", col));
+
+        Assert.Equal("DECIMAL_OUT_OF_RANGE", ex.ErrorCode);
+    }
+
+    [Fact]
+    public void AreValuesEqual_CorrectlyComparesNullsAndTypes()
+    {
+        Assert.True(_valueConverter.AreValuesEqual(null, null));
+        Assert.False(_valueConverter.AreValuesEqual(null, "abc"));
+        Assert.True(_valueConverter.AreValuesEqual("hello ", "hello"));
+        Assert.True(_valueConverter.AreValuesEqual(100, "100.00"));
+        Assert.True(_valueConverter.AreValuesEqual(true, true));
+        Assert.False(_valueConverter.AreValuesEqual(true, false));
+    }
 }

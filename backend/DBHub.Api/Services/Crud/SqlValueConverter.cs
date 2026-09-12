@@ -84,12 +84,36 @@ public class SqlValueConverter : ISqlValueConverter
         // 3. Decimals & Floats
         if (normalizedType is "decimal" or "numeric" or "money" or "smallmoney")
         {
-            if (unwrapped is decimal d) return d;
-            if (decimal.TryParse(unwrapped.ToString(), NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed))
+            decimal dVal;
+            if (unwrapped is decimal d)
             {
-                return parsed;
+                dVal = d;
             }
-            throw new DynamicCrudException("INVALID_DATA_TYPE", $"Cannot convert '{unwrapped}' to decimal for column '{column.Name}'.");
+            else if (decimal.TryParse(unwrapped.ToString(), NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed))
+            {
+                dVal = parsed;
+            }
+            else
+            {
+                throw new DynamicCrudException("INVALID_DATA_TYPE", $"Cannot convert '{unwrapped}' to decimal for column '{column.Name}'.");
+            }
+
+            if (column.Precision.HasValue && column.Precision.Value > 0)
+            {
+                int scale = column.Scale ?? 0;
+                int maxIntegerDigits = column.Precision.Value - scale;
+                var absVal = Math.Abs(dVal);
+                var truncated = Math.Truncate(absVal);
+                var intDigits = truncated == 0 ? 0 : truncated.ToString(CultureInfo.InvariantCulture).Length;
+                if (intDigits > maxIntegerDigits)
+                {
+                    throw new DynamicCrudException(
+                        "DECIMAL_OUT_OF_RANGE",
+                        $"Value '{unwrapped}' for column '{column.Name}' exceeds the maximum allowed integer digits of {maxIntegerDigits} (definition: decimal({column.Precision},{scale})).",
+                        HttpStatusCode.BadRequest);
+                }
+            }
+            return dVal;
         }
 
         if (normalizedType is "float" or "real")
@@ -177,6 +201,33 @@ public class SqlValueConverter : ISqlValueConverter
         var result = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         var colMap = columns.ToDictionary(c => c.Name, StringComparer.OrdinalIgnoreCase);
 
+        // Validate that all input columns exist in table metadata
+        foreach (var key in inputValues.Keys)
+        {
+            if (!colMap.ContainsKey(key))
+            {
+                throw new DynamicCrudException(
+                    "INVALID_COLUMN",
+                    $"Column '{key}' does not exist on table.",
+                    HttpStatusCode.BadRequest);
+            }
+        }
+
+        // In Update mode, Primary Key cannot be modified
+        if (!isInsert)
+        {
+            foreach (var pk in columns.Where(c => c.IsPrimaryKey))
+            {
+                if (inputValues.ContainsKey(pk.Name))
+                {
+                    throw new DynamicCrudException(
+                        "PRIMARY_KEY_READONLY",
+                        $"Primary Key column '{pk.Name}' cannot be updated.",
+                        HttpStatusCode.BadRequest);
+                }
+            }
+        }
+
         foreach (var col in columns)
         {
             // Omit protected columns
@@ -236,6 +287,31 @@ public class SqlValueConverter : ISqlValueConverter
         }
 
         return result;
+    }
+
+    public bool AreValuesEqual(object? val1, object? val2)
+    {
+        if (val1 == null || val1 is DBNull)
+            return val2 == null || val2 is DBNull;
+        if (val2 == null || val2 is DBNull)
+            return false;
+
+        if (val1 is string s1 && val2 is string s2)
+            return string.Equals(s1.Trim(), s2.Trim(), StringComparison.Ordinal);
+
+        if (val1 is bool b1 && val2 is bool b2)
+            return b1 == b2;
+
+        if (val1 is DateTime dt1 && val2 is DateTime dt2)
+            return Math.Abs((dt1 - dt2).TotalMilliseconds) < 1000;
+
+        if (decimal.TryParse(val1.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var d1) &&
+            decimal.TryParse(val2.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var d2))
+        {
+            return d1 == d2;
+        }
+
+        return string.Equals(val1.ToString(), val2.ToString(), StringComparison.Ordinal);
     }
 
     public Dictionary<string, object?> PrepareKeyValues(

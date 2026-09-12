@@ -24,4 +24,9 @@ public interface ISqlValueConverter
     Dictionary<string, object?> PrepareKeyValues(
         IDictionary<string, object?> inputKeys,
         IReadOnlyList<ColumnItem> columns);
+
+    /// <summary>
+    /// Compares two database/converted values for semantic equality to detect no-op updates.
+    /// </summary>
+    bool AreValuesEqual(object? val1, object? val2);
 }
