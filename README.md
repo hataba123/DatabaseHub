@@ -1,166 +1,149 @@
-# DBHub – Enterprise Database Management Platform (Frontend)
+# DBHub – Enterprise Database Management Platform
 
 DBHub là nền tảng quản trị cơ sở dữ liệu doanh nghiệp (SQL Server) thông qua giao diện Web hiện đại, hiệu năng cao, trực quan và chuẩn Data-dense. 
 
-Giao diện được xây dựng bằng **React + TypeScript + Vite + Ant Design**, thiết kế theo tiêu chuẩn của các nền tảng quản trị cao cấp như Azure Portal, Vercel Dashboard, GitLab Admin, và SQL Server Management Studio (SSMS).
+Dự án bao gồm hai phần:
+- **Frontend**: Xây dựng bằng **React + TypeScript + Vite + Ant Design**, thiết kế theo tiêu chuẩn của các nền tảng quản trị cao cấp (Azure Portal, Vercel Dashboard, SSMS) kèm hỗ trợ đa ngôn ngữ Tiếng Việt (`vi_VN`) & English.
+- **Backend (Phase 2)**: Xây dựng bằng **ASP.NET Core 10 Web API + Dapper + Microsoft.Data.SqlClient** kết nối trực tiếp đến **SQL Server**, hoạt động ở chế độ **Read-Only** bảo mật cao với cơ chế phòng thủ SQL Injection toàn diện.
 
 ---
 
-## 1. Yêu cầu hệ thống (Requirements)
+## 1. Yêu cầu hệ thống (Prerequisites)
 
 - **Node.js**: `v18.0.0` trở lên (Khuyến nghị `v20+`)
-- **NPM**: `v9.0.0` trở lên hoặc PNPM / Yarn
+- **.NET SDK**: `v10.0` trở lên (hoặc .NET 8/9/10 tương thích)
+- **SQL Server**: SQL Server 2016 trở lên hoặc Azure SQL Database
 - Trình duyệt hiện đại: Chrome, Edge, Firefox, Safari
 
 ---
 
-## 2. Cài đặt & Chạy ứng dụng (Install & Run)
+## 2. Hướng dẫn cài đặt & Khởi chạy (Quick Start)
 
-Chỉ với 2 câu lệnh đơn giản:
+Mở 2 cửa sổ terminal riêng biệt:
+
+### Terminal 1: Khởi chạy ASP.NET Core Backend (Port 5000)
 
 ```bash
-# 1. Cài đặt dependencies
+# Di chuyển vào thư mục API
+cd backend/DBHub.Api
+
+# Khởi chạy ứng dụng .NET
+dotnet run
+```
+
+Backend sẽ khởi động tại: `http://localhost:5000` (Swagger UI: `http://localhost:5000/swagger`).
+
+### Terminal 2: Khởi chạy React Frontend (Port 3000)
+
+```bash
+# Tại thư mục gốc của dự án:
 npm install
 
-# 2. Khởi chạy development server
+# Khởi chạy frontend Vite
 npm run dev
 ```
 
-Ứng dụng sẽ chạy tại địa chỉ: `http://localhost:3000` (hoặc cổng hiển thị trong terminal).
+Ứng dụng Frontend sẽ chạy tại địa chỉ: `http://localhost:3000`.
 
-Để kiểm tra build cho môi trường production:
-
-```bash
-npm run build
-```
+Vite dev server đã được cấu hình tự động proxy các request `/api/*` tới `http://localhost:5000`.
 
 ---
 
-## 3. Cấu trúc thư mục (Project Structure)
+## 3. Kiến trúc hệ thống (Architecture)
 
 ```text
-src/
-│
-├── app/
-│   ├── router/index.tsx          # Toàn bộ routing theo master spec
-│   └── providers/                # QueryClient, Ant Design ConfigProvider (Theme)
-│
-├── components/
-│   ├── common/                   # StatusBadge, MetricCard, PageHeader, EmptyState, JsonViewer
-│   ├── data-table/               # Reusable DataTable: sorting, pagination, density, selection
-│   ├── database/                 # AddConnectionModal, DatabaseTreeExplorer
-│   └── layout/                   # MainLayout, AppHeader, AppSidebar, GlobalSearchModal (Ctrl+K)
-│
-├── features/
-│   ├── dashboard/                # Database Overview, Stats, Activity/Storage Charts, Health table
-│   ├── databases/                # Database List (Grid/List), Database Detail (Overview/Tables/Views/Procs)
-│   ├── data-browser/             # Table Data Browser, Filter Builder, Column Selector, Row Details, Schema Tab
-│   ├── compare/                  # Database Compare & Row Compare side-by-side
-│   ├── sync/                     # Database Sync 5-step wizard
-│   ├── audit/                    # Audit Logs table, filters, JSON before/after visual diff
-│   ├── monitoring/               # System Monitoring metrics, charts, slow queries, largest tables
-│   ├── users/                    # User management table & detail drawer
-│   ├── roles/                    # Role & Permissions matrix (down to table level)
-│   └── settings/                 # Settings sub-nav (Connections, General, Appearance, Security)
-│
-├── mocks/
-│   ├── databases.mock.ts         # 8 databases (PMSC, HR, Weigh Station, ERP, Backup, Dev, Archive)
-│   ├── tables.mock.ts            # Tables, Views, Stored Procedures, Schemas
-│   ├── nhanvien.mock.ts          # 120+ dòng dữ liệu tiếng Việt thực tế (NhanVienDaiThanh)
-│   ├── audit.mock.ts             # Lịch sử thay đổi dữ liệu chi tiết
-│   ├── monitoring.mock.ts        # Metrics, slow queries, server health
-│   └── users.mock.ts             # Users và ma trận phân quyền
-│
-├── services/                     # Service Abstraction Layer (dễ dàng thay bằng HTTP API sau này)
-│   ├── databaseService.ts
-│   ├── tableService.ts
-│   ├── compareService.ts
-│   ├── auditService.ts
-│   ├── monitoringService.ts
-│   └── userService.ts
-│
-├── stores/                       # Zustand store (environment, sidebar collapsed, active DB, search modal)
-├── types/                        # TypeScript interfaces & types chuẩn doanh nghiệp
-├── utils/                        # Formatters (bytes, dates, numbers) & dynamic filter evaluator
-└── styles/                       # Design tokens constants, theme config, global css
+React 18 + Vite (Port 3000)
+       │
+       │ HTTP / JSON (Proxy /api)
+       ▼
+ASP.NET Core 10 Web API (Port 5000)
+  ├── Controllers
+  │    ├── DatabaseConnectionsController (/api/database-connections)
+  │    ├── DatabasesController (/api/connections/{id}/databases)
+  │    ├── MetadataController (/api/connections/{id}/databases/{db}/...)
+  │    ├── TableDataController (/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/rows)
+  │    └── HealthController (/health, /api/health)
+  │
+  ├── Services & Infrastructure
+  │    ├── SqlIdentifierValidator (Whitelist Regex & SQL Injection Defense)
+  │    ├── SqlConnectionFactory (SqlConnectionStringBuilder)
+  │    ├── SqlServerMetadataService (System catalog views + MemoryCache)
+  │    ├── TableDataQueryService (OFFSET FETCH Paging, Sorting & Dynamic Filters)
+  │    └── JsonDatabaseConnectionStore (Persistent App_Data/connections.json)
+  │
+  └── SQL Server Instance
+       ├── System Catalogs (sys.databases, sys.tables, sys.columns, sys.indexes, sys.foreign_keys)
+       └── User Tables & Views
 ```
 
 ---
 
-## 4. Dữ liệu mẫu (Realistic Mock Data)
+## 4. Các tính năng chính của Phase 2 (Read-Only Integration)
 
-Hệ thống được trang bị bộ mock data sát với thực tế sản xuất tại các nhà máy và doanh nghiệp:
-
-- **Databases**:
-  - `PMSC Production` (Online, 482 GB, 326 tables, 42 views, 82 procs)
-  - `HR Database` (Online, 85 GB, 64 tables)
-  - `Weigh Station` (Warning, 42 GB, trạm cân tải trọng)
-  - `ERP Production` (Online, 310 GB)
-  - `Reporting Database` (Staging, 195 GB)
-  - `PMSC Backup` (Offline Standby, 500 GB)
-  - `Testing Database` (Development, 18 GB)
-  - `Archive Database` (840 GB)
-- **Table Data Browser (`NhanVienDaiThanh`)**:
-  - Hơn **120 bản ghi nhân viên Việt Nam** thực tế với họ tên đầy đủ (`Lê Thành Ký`, `Bùi Thị Tuyết Sang`, `Nguyễn Văn Minh`, `Trần Thị Lan`, `Phạm Quốc Huy`, ...), xưởng sản xuất, tổ đội, ngày sinh, số điện thoại, tình trạng làm việc, bậc lương.
-  - Hỗ trợ phân trang, tìm kiếm đa cột, bộ lọc động (Filter Builder), ẩn hiện cột (Column Selector), và xem chi tiết (Details, History, Raw JSON).
-
----
-
-## 5. Các tính năng chính (Main Features)
-
-1. **Enterprise Header & Shell**:
-   - Logo DBHub nhận diện cao cấp.
-   - Global Search (`Ctrl + K`): Tìm kiếm tức thì cơ sở dữ liệu, bảng, view, stored procedure và điều hướng trực tiếp.
-   - Chuyển đổi môi trường trực quan (`Production`, `Staging`, `Development`).
-   - Notification popover & thông tin tài khoản người dùng.
-   - Sidebar có thể thu gọn mượt mà.
-2. **Dashboard**:
-   - 5 thẻ thống kê chính: Connected Databases, Active Connections, Queries/min, Slow Queries, Storage Used.
-   - Biểu đồ thời gian thực Database Activity (Area Chart) và Storage Breakdown (Bar Chart) bằng Recharts.
-   - Bảng Database Health theo dõi latency, trạng thái và kết nối trực tiếp.
-3. **Database Management**:
-   - Danh sách cơ sở dữ liệu dạng Grid Card hoặc List View.
-   - Modal "Add Database Connection" với tính năng "Test Connection" mô phỏng đo độ trễ mạng (latency ping).
-   - Trang chi tiết cơ sở dữ liệu với các tab: Overview, Tables, Views, Stored Procedures, Monitoring, Permissions.
-4. **Database Explorer & Table Data Browser**:
-   - Cây điều hướng đối tượng cơ sở dữ liệu bên trái có tìm kiếm nhanh.
-   - Bảng dữ liệu hỗ trợ sắp xếp đa trường, server-style pagination (`Showing 1-25 of 120`).
-   - Tùy chỉnh mật độ hiển thị (Density: Compact / Normal / Comfortable).
-   - **Filter Builder**: Bộ lọc điều kiện đa kiểu dữ liệu (String: contains, equals, startsWith; Number: =, !=, >, <, between; Boolean: isTrue, isFalse; Date: equals, before, after).
-   - **Column Selector Drawer**: Bật/tắt các cột hiển thị trên DataGrid.
-   - **Row Details Drawer**: Xem chi tiết bản ghi dạng thẻ, lịch sử thay đổi, và raw JSON viewer kèm tính năng copy nhanh.
-   - **Dynamic Row Modal**: Thêm mới và chỉnh sửa bản ghi với form validation.
-   - **Schema & Metadata Tab**: Xem cấu trúc Columns (kiểu dữ liệu, Primary Key, Foreign Key), Indexes, và Relationships.
-5. **Database Compare & Row Compare**:
-   - So sánh chênh lệch giữa Source Database và Target Database.
-   - Bảng so sánh số lượng dòng và trạng thái khác biệt (Same, Different, Missing in Target).
-   - Modal so sánh từng bản ghi (Side-by-side visual diff) với tính năng đồng bộ 2 chiều (Copy Source → Target, Target → Source).
-6. **Database Sync**:
-   - Quy trình hướng dẫn 5 bước (Wizard: Select DBs → Compare → Review Changes → Confirm with Safety Warning → Execution Result).
-   - Xem trước mã SQL script đồng bộ (`Preview SQL`).
-7. **Audit Logs**:
-   - Theo dõi toàn bộ lịch sử truy vấn và thay đổi dữ liệu theo người dùng, database, table, action (INSERT, UPDATE, DELETE).
-   - Drawer xem Before / After JSON diff được tô màu chuẩn Git diff.
-8. **Monitoring & Diagnostics**:
-   - Theo dõi CPU, RAM, Active Connections, Queries/sec.
-   - Biểu đồ biến thiên hiệu năng theo thời gian.
-   - Bảng Slow Queries (T-SQL, duration, reads) và Top các bảng dung lượng lớn nhất.
-9. **Users & Role Matrix**:
-   - Quản lý danh sách người dùng và cấp phát vai trò (Super Admin, Database Admin, Data Editor, Data Viewer, Auditor).
-   - Ma trận phân quyền chi tiết tới từng Database và từng Table nhạy cảm.
-10. **Settings**:
-    - Quản lý các kết nối đã lưu, cấu hình hệ thống, giao diện (Compact mode, Dark mode beta), bảo mật và cảnh báo.
+1. **Quản lý kết nối SQL Server (Database Connections)**:
+   - Thêm cấu hình kết nối mới: Server, Port, Database, Authentication (SQL Server / Windows), Username, Password, SSL Encrypt, Trust Server Certificate.
+   - Lưu trữ danh sách kết nối an toàn (mật khẩu không bao giờ được trả về API hay xuất ra log).
+   - **Đo độ trễ thực tế (Real Latency Measurement)**: Test connection trực tiếp với SQL Server bằng `Stopwatch` và trả về thời gian phản hồi (ms) cùng phiên bản SQL Server.
+2. **Khám phá Metadata (Database Explorer)**:
+   - Liệt kê danh sách database người dùng (loại trừ các database hệ thống như `master`, `tempdb`, `model`, `msdb`).
+   - Liệt kê toàn bộ Tables (kèm thống kê số dòng `RowCount`), Views, Stored Procedures.
+   - Truy vấn chi tiết cấu trúc bảng: Columns (Tên, DataType, MaxLength, Nullable, Primary Key, Identity), Indexes (Clustered/Non-Clustered, Unique, Columns), Relationships (Foreign Keys).
+3. **Truy vấn dữ liệu bảng (Table Data Viewer)**:
+   - Phân trang phía Server (`OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY`).
+   - Sắp xếp động theo bất kỳ cột nào (`ORDER BY [Column] ASC/DESC`).
+   - Tìm kiếm toàn văn nhanh (Global Search across text columns).
+   - Bộ lọc có cấu trúc (Filter Builder: equals, contains, startsWith, >, <, between, isTrue, isFalse, dates...).
+4. **Phòng thủ SQL Injection nghiêm ngặt**:
+   - Mọi định danh (`database`, `schema`, `table`, `column`, `sortDirection`) đều được kiểm tra qua `SqlIdentifierValidator` với regex whitelist nghiêm ngặt trước khi quote `[ ]`.
+   - 100% giá trị tìm kiếm và bộ lọc được chuyển thành `Dapper.DynamicParameters`. Không sử dụng phép ghép chuỗi thô.
+   - Giới hạn kích thước trang (`PageSize` từ 1 đến 500 dòng).
+5. **Chế độ Chỉ đọc (Read-Only Enforcement)**:
+   - Tuyệt đối không hỗ trợ `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, hoặc thực thi arbitrary SQL trong Phase này.
+   - Frontend hiển thị nhãn `Phase 2: Read-Only` và ngăn chặn các hành vi ghi dữ liệu lên database thật.
+6. **Chế độ dữ liệu linh hoạt (Fallback & Toggle)**:
+   - Cấu hình qua biến môi trường `.env` (`VITE_DATA_SOURCE=api` hoặc `VITE_DATA_SOURCE=mock`).
+   - Khi kết nối backend gặp gián đoạn hoặc chưa có máy chủ SQL Server thật, hệ thống tự động fallback về bộ mock data phong phú (`NhanVienDaiThanh` 120+ dòng, 8 databases mẫu) giúp demo không bị gián đoạn.
 
 ---
 
-## 6. Sẵn sàng tích hợp Backend (Future Backend Integration)
+## 5. Danh sách API Endpoints chính
 
-Mọi thao tác dữ liệu đều đi qua **Service Abstraction Layer** (`src/services/`):
-- `databaseService`
-- `tableService`
-- `compareService`
-- `auditService`
-- `monitoringService`
-- `userService`
+| Phương thức | Endpoint | Mô tả |
+|---|---|---|
+| `GET` | `/health` hoặc `/api/health` | Health check hệ thống |
+| `GET` | `/api/database-connections` | Lấy danh sách kết nối (ẩn mật khẩu) |
+| `POST` | `/api/database-connections` | Tạo mới cấu hình kết nối SQL Server |
+| `GET` | `/api/database-connections/{id}` | Lấy chi tiết 1 kết nối |
+| `DELETE` | `/api/database-connections/{id}` | Xóa 1 cấu hình kết nối |
+| `POST` | `/api/database-connections/test` | Kiểm tra kết nối và đo latency |
+| `POST` | `/api/database-connections/{id}/test` | Kiểm tra lại kết nối đã lưu |
+| `GET` | `/api/connections/{id}/databases` | Danh sách database trên server |
+| `GET` | `/api/connections/{id}/databases/{db}/tables` | Danh sách bảng trong database |
+| `GET` | `/api/connections/{id}/databases/{db}/views` | Danh sách views trong database |
+| `GET` | `/api/connections/{id}/databases/{db}/procedures` | Danh sách stored procedures |
+| `GET` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/columns` | Cấu trúc cột |
+| `GET` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/indexes` | Danh sách indexes |
+| `GET` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/relationships` | Danh sách Foreign Keys |
+| `POST` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/rows/query` | Lấy dữ liệu phân trang, lọc, sắp xếp |
 
-Sau này khi xây dựng backend bằng **ASP.NET Core Web API** và kết nối trực tiếp **SQL Server**, đội ngũ phát triển chỉ cần thay thế các hàm trong `src/services/` bằng các lệnh gọi HTTP (`axios` hoặc `fetch`) tương ứng mà không phải tái cấu trúc lại các UI components.
+---
+
+## 6. Kiểm thử tự động (Unit Tests)
+
+Chạy bộ kiểm thử tự động của Backend:
+
+```bash
+dotnet test backend/DBHub.slnx
+```
+
+Bộ unit tests trong `DBHub.Tests` bao quát:
+- Whitelist validation cho SQL identifier hợp lệ (chữ cái, số, `@`, `#`, `_`).
+- Chặn đứng các nguy cơ SQL Injection (chứa dấu chấm phẩy, comment `--`, `/* */`, quotes, từ khóa nguy hiểm `DROP TABLE`, `1=1; SELECT...`).
+- Kiểm tra chuẩn hóa hướng sắp xếp (`ASC`/`DESC`).
+- Kiểm tra ràng buộc phân trang (bounds: Page $\ge 1$, PageSize từ 1 đến 500).
+
+---
+
+## 7. Giấy phép (License)
+
+Dự án phát triển nội bộ cho doanh nghiệp – Bản quyền thuộc về đội ngũ phát triển DBHub.

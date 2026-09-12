@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 *.tsbuildinfo
+.env
+.env*.local
 
 # Editor directories and files
 .vscode/*
@@ -21,5 +23,15 @@ dist-ssr
 *.suo
 *.ntvs*
 *.njsproj
-*.sln
 *.sw?
+
+# .NET Build artifacts
+**/bin/
+**/obj/
+.vs/
+*.user
+*.userprefs
+appsettings.Development.json
+**/App_Data/
+
+
