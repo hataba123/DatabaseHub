@@ -1,0 +1,158 @@
+import { DatabaseObjectItem, TableSchema } from '@/types/table';
+
+export const mockDatabaseObjects: Record<string, DatabaseObjectItem[]> = {
+  pmsc: [
+    { id: 'tbl-1', name: 'NhanVienDaiThanh', schema: 'dbo', type: 'table', rowCount: 326842, dataSizeMb: 142.5, indexSizeMb: 38.2, createdAt: '2022-01-10' },
+    { id: 'tbl-2', name: 'HQ_Size', schema: 'dbo', type: 'table', rowCount: 82, dataSizeMb: 0.8, indexSizeMb: 0.2, createdAt: '2022-01-15' },
+    { id: 'tbl-3', name: 'HQ_PhieuCan', schema: 'dbo', type: 'table', rowCount: 82420, dataSizeMb: 68.4, indexSizeMb: 19.5, createdAt: '2022-02-01' },
+    { id: 'tbl-4', name: 'HQ_PhieuCanNhapNguyenLieu', schema: 'dbo', type: 'table', rowCount: 54100, dataSizeMb: 45.2, indexSizeMb: 12.8, createdAt: '2022-02-10' },
+    { id: 'tbl-5', name: 'Departments', schema: 'dbo', type: 'table', rowCount: 45, dataSizeMb: 0.5, indexSizeMb: 0.1, createdAt: '2021-12-01' },
+    { id: 'tbl-6', name: 'ProductionOrders', schema: 'dbo', type: 'table', rowCount: 19450, dataSizeMb: 24.8, indexSizeMb: 6.4, createdAt: '2022-03-01' },
+    { id: 'tbl-7', name: 'InventoryStock', schema: 'dbo', type: 'table', rowCount: 12890, dataSizeMb: 15.6, indexSizeMb: 4.2, createdAt: '2022-03-15' },
+    { id: 'tbl-8', name: 'AuditLogs', schema: 'dbo', type: 'table', rowCount: 654200, dataSizeMb: 210.0, indexSizeMb: 54.0, createdAt: '2021-11-15' },
+    // Views
+    { id: 'vw-1', name: 'vw_EmployeeSummary', schema: 'dbo', type: 'view', createdAt: '2022-04-01' },
+    { id: 'vw-2', name: 'vw_DailyProductionReport', schema: 'dbo', type: 'view', createdAt: '2022-04-10' },
+    { id: 'vw-3', name: 'vw_ActiveWeighTickets', schema: 'dbo', type: 'view', createdAt: '2022-05-12' },
+    { id: 'vw-4', name: 'vw_DepartmentStatistics', schema: 'dbo', type: 'view', createdAt: '2022-06-01' },
+    // Stored Procedures
+    { id: 'sp-1', name: 'sp_CalculateMonthlyPayroll', schema: 'dbo', type: 'procedure', createdAt: '2022-02-15' },
+    { id: 'sp-2', name: 'sp_SyncProductionData', schema: 'dbo', type: 'procedure', createdAt: '2022-03-20' },
+    { id: 'sp-3', name: 'sp_CloseWeighTicket', schema: 'dbo', type: 'procedure', createdAt: '2022-04-05' },
+    { id: 'sp-4', name: 'sp_PurgeHistoricalAudit', schema: 'dbo', type: 'procedure', createdAt: '2022-05-01' },
+  ],
+  hr: [
+    { id: 'hr-1', name: 'Employees', schema: 'dbo', type: 'table', rowCount: 4200, dataSizeMb: 8.5, indexSizeMb: 2.1 },
+    { id: 'hr-2', name: 'AttendanceLogs', schema: 'dbo', type: 'table', rowCount: 185000, dataSizeMb: 42.0, indexSizeMb: 11.2 },
+    { id: 'hr-3', name: 'SalaryContracts', schema: 'dbo', type: 'table', rowCount: 5100, dataSizeMb: 6.2, indexSizeMb: 1.8 },
+    { id: 'hr-vw-1', name: 'vw_MonthlyLeaveSummary', schema: 'dbo', type: 'view' },
+    { id: 'hr-sp-1', name: 'sp_ProcessTimesheet', schema: 'dbo', type: 'procedure' },
+  ],
+  'weigh-station': [
+    { id: 'ws-1', name: 'HQ_PhieuCan', schema: 'dbo', type: 'table', rowCount: 82419, dataSizeMb: 28.5, indexSizeMb: 7.2 },
+    { id: 'ws-2', name: 'TruckScales', schema: 'dbo', type: 'table', rowCount: 14, dataSizeMb: 0.1, indexSizeMb: 0.05 },
+    { id: 'ws-vw-1', name: 'vw_DailyTonnage', schema: 'dbo', type: 'view' },
+  ],
+};
+
+export const mockNhanVienSchema: TableSchema = {
+  databaseId: 'pmsc',
+  tableName: 'NhanVienDaiThanh',
+  schema: 'dbo',
+  columns: [
+    {
+      name: 'MaNhanVien',
+      dataType: 'nvarchar(50)',
+      nullable: false,
+      isPrimaryKey: true,
+      description: 'Mã định danh nhân viên duy nhất',
+    },
+    {
+      name: 'Name',
+      dataType: 'nvarchar(255)',
+      nullable: true,
+      isPrimaryKey: false,
+      description: 'Họ và tên đầy đủ của nhân viên',
+    },
+    {
+      name: 'Xuong',
+      dataType: 'int',
+      nullable: true,
+      isPrimaryKey: false,
+      description: 'Số hiệu phân xưởng làm việc (1-5)',
+    },
+    {
+      name: 'DeptName0',
+      dataType: 'nvarchar(255)',
+      nullable: true,
+      isPrimaryKey: false,
+      isForeignKey: true,
+      references: { table: 'Departments', column: 'DeptName' },
+      description: 'Tên phòng ban / tổ nhóm công tác',
+    },
+    {
+      name: 'BirthDate',
+      dataType: 'datetime',
+      nullable: true,
+      isPrimaryKey: false,
+      description: 'Ngày tháng năm sinh',
+    },
+    {
+      name: 'Tel',
+      dataType: 'varchar(50)',
+      nullable: true,
+      isPrimaryKey: false,
+      description: 'Số điện thoại liên lạc',
+    },
+    {
+      name: 'Address',
+      dataType: 'nvarchar(255)',
+      nullable: true,
+      isPrimaryKey: false,
+      description: 'Địa chỉ thường trú / tỉnh thành',
+    },
+    {
+      name: 'IsDisplay',
+      dataType: 'bit',
+      nullable: false,
+      isPrimaryKey: false,
+      defaultValue: '1',
+      description: 'Trạng thái hiển thị trong danh mục phân ca',
+    },
+    {
+      name: 'Status',
+      dataType: 'nvarchar(50)',
+      nullable: false,
+      isPrimaryKey: false,
+      defaultValue: "'Đang Làm'",
+      description: 'Tình trạng công tác',
+    },
+    {
+      name: 'SalaryGrade',
+      dataType: 'varchar(50)',
+      nullable: true,
+      isPrimaryKey: false,
+      description: 'Bậc lương',
+    },
+    {
+      name: 'JoinedDate',
+      dataType: 'datetime',
+      nullable: true,
+      isPrimaryKey: false,
+      description: 'Ngày vào công ty',
+    },
+  ],
+  indexes: [
+    {
+      name: 'PK_NhanVienDaiThanh',
+      type: 'Clustered',
+      columns: ['MaNhanVien'],
+      isUnique: true,
+      sizeKb: 1240,
+    },
+    {
+      name: 'IX_NhanVien_Xuong_Dept',
+      type: 'Non-Clustered',
+      columns: ['Xuong', 'DeptName0'],
+      isUnique: false,
+      sizeKb: 480,
+    },
+    {
+      name: 'IX_NhanVien_Name',
+      type: 'Non-Clustered',
+      columns: ['Name'],
+      isUnique: false,
+      sizeKb: 620,
+    },
+  ],
+  relationships: [
+    {
+      constraintName: 'FK_NhanVien_Departments',
+      column: 'DeptName0',
+      foreignTable: 'Departments',
+      foreignColumn: 'DeptName',
+      onDelete: 'NO ACTION',
+      onUpdate: 'CASCADE',
+    },
+  ],
+};
