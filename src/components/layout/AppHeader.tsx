@@ -23,9 +23,11 @@ import {
   QuestionCircleOutlined,
   CheckCircleOutlined,
   WarningOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/stores/useAppStore';
+import { useTranslation } from '@/locales';
 import { DatabaseEnvironment } from '@/types/database';
 import { designConstants } from '@/styles/theme';
 
@@ -34,11 +36,23 @@ const { Text } = Typography;
 
 export const AppHeader: React.FC = () => {
   const { environment, setEnvironment, setGlobalSearchOpen } = useAppStore();
+  const { t, language, setLanguage } = useTranslation();
   const navigate = useNavigate();
 
   const handleEnvChange = (env: DatabaseEnvironment) => {
     setEnvironment(env);
-    message.info(`Switched environment context to ${env}`);
+    message.info(
+      language === 'vi'
+        ? `Đã chuyển sang ngữ cảnh môi trường ${env}`
+        : `Switched environment context to ${env}`
+    );
+  };
+
+  const handleLanguageChange = (lang: 'vi' | 'en') => {
+    setLanguage(lang);
+    message.success(
+      lang === 'vi' ? 'Đã đổi ngôn ngữ sang Tiếng Việt' : 'Language changed to English'
+    );
   };
 
   const envItems = [
@@ -74,6 +88,30 @@ export const AppHeader: React.FC = () => {
     },
   ];
 
+  const languageItems = [
+    {
+      key: 'vi',
+      label: (
+        <Space>
+          <span style={{ fontSize: 15 }}>🇻🇳</span>
+          <span style={{ fontWeight: language === 'vi' ? 600 : 400 }}>Tiếng Việt</span>
+          {language === 'vi' && <Tag color="blue" style={{ marginLeft: 4, fontSize: 10 }}>Mặc định</Tag>}
+        </Space>
+      ),
+      onClick: () => handleLanguageChange('vi'),
+    },
+    {
+      key: 'en',
+      label: (
+        <Space>
+          <span style={{ fontSize: 15 }}>🇬🇧</span>
+          <span style={{ fontWeight: language === 'en' ? 600 : 400 }}>English</span>
+        </Space>
+      ),
+      onClick: () => handleLanguageChange('en'),
+    },
+  ];
+
   const getEnvBadge = () => {
     switch (environment) {
       case 'Production':
@@ -88,24 +126,24 @@ export const AppHeader: React.FC = () => {
   const notifications = [
     {
       id: 1,
-      title: 'Weigh Station Storage Warning',
+      title: language === 'vi' ? 'Cảnh báo dung lượng Weigh Station' : 'Weigh Station Storage Warning',
       time: '12m ago',
       type: 'warning',
-      desc: 'Storage utilization reached 84% (42 GB / 50 GB)',
+      desc: language === 'vi' ? 'Dung lượng đã chạm 84% (42 GB / 50 GB)' : 'Storage utilization reached 84% (42 GB / 50 GB)',
     },
     {
       id: 2,
-      title: 'Data Sync Completed',
+      title: language === 'vi' ? 'Đồng bộ dữ liệu thành công' : 'Data Sync Completed',
       time: '1h ago',
       type: 'success',
-      desc: 'HQ_Size schema successfully synchronized to PMSC Backup',
+      desc: language === 'vi' ? 'Đã đồng bộ schema HQ_Size sang PMSC Backup' : 'HQ_Size schema successfully synchronized to PMSC Backup',
     },
     {
       id: 3,
-      title: 'Backup Replica Offline',
+      title: language === 'vi' ? 'Máy chủ Backup ngoại tuyến' : 'Backup Replica Offline',
       time: '3h ago',
       type: 'warning',
-      desc: 'PMSC Standby replica connection timed out on DB-SRV-04',
+      desc: language === 'vi' ? 'Mất kết nối tới máy chủ DB-SRV-04' : 'PMSC Standby replica connection timed out on DB-SRV-04',
     },
   ];
 
@@ -121,8 +159,8 @@ export const AppHeader: React.FC = () => {
           borderBottom: '1px solid #f1f5f9',
         }}
       >
-        <Text strong>Notifications</Text>
-        <Text type="secondary" style={{ fontSize: 12 }}>3 unread</Text>
+        <Text strong>{t.header.notifications}</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>3 {t.header.unread}</Text>
       </div>
       <List
         size="small"
@@ -162,26 +200,26 @@ export const AppHeader: React.FC = () => {
     {
       key: 'profile',
       icon: <UserOutlined />,
-      label: 'My Profile',
+      label: t.nav.profile,
       onClick: () => navigate('/users'),
     },
     {
       key: 'settings',
       icon: <SettingOutlined />,
-      label: 'System Settings',
+      label: t.nav.settings,
       onClick: () => navigate('/settings'),
     },
     {
       key: 'help',
       icon: <QuestionCircleOutlined />,
-      label: 'Documentation',
+      label: t.nav.documentation,
       onClick: () => message.info('DBHub Enterprise v1.0.0 documentation'),
     },
     { type: 'divider' as const },
     {
       key: 'logout',
       icon: <LogoutOutlined style={{ color: '#ef4444' }} />,
-      label: <span style={{ color: '#ef4444' }}>Sign Out</span>,
+      label: <span style={{ color: '#ef4444' }}>{t.nav.signOut}</span>,
       onClick: () => message.success('Signed out (Demo Mode)'),
     },
   ];
@@ -268,7 +306,7 @@ export const AppHeader: React.FC = () => {
         >
           <Space size={8}>
             <SearchOutlined style={{ color: '#94a3b8' }} />
-            <span style={{ fontSize: 13 }}>Search databases, tables, views...</span>
+            <span style={{ fontSize: 13 }}>{t.header.searchPlaceholder}</span>
           </Space>
           <span
             style={{
@@ -286,8 +324,28 @@ export const AppHeader: React.FC = () => {
         </Button>
       </div>
 
-      {/* Right: Environment badge, Notification, User */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+      {/* Right: Language toggle, Environment badge, Notification, User */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        {/* Language Switcher */}
+        <Dropdown menu={{ items: languageItems }} trigger={['click']}>
+          <Button
+            size="small"
+            style={{
+              height: 28,
+              padding: '0 10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              borderColor: '#e2e8f0',
+              fontWeight: 500,
+            }}
+          >
+            <GlobalOutlined style={{ color: '#1677ff', fontSize: 13 }} />
+            <span>{language === 'vi' ? 'Tiếng Việt' : 'English'}</span>
+            <DownOutlined style={{ fontSize: 10, color: '#94a3b8' }} />
+          </Button>
+        </Dropdown>
+
         {/* Current Environment Badge Dropdown */}
         <Dropdown menu={{ items: envItems }} trigger={['click']}>
           <Button

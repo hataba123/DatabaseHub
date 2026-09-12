@@ -10,7 +10,6 @@ import {
   Modal,
   message,
   Typography,
-  Tabs,
   Badge,
   Tooltip,
 } from 'antd';
@@ -43,6 +42,7 @@ import { tableService } from '@/services/tableService';
 import { databaseService } from '@/services/databaseService';
 import { FilterCondition, TableSchema, DatabaseObjectItem } from '@/types/table';
 import { DatabaseConnection } from '@/types/database';
+import { useTranslation } from '@/locales';
 
 const { Text } = Typography;
 
@@ -52,6 +52,7 @@ export const TableDataBrowserPage: React.FC = () => {
     tableName: string;
   }>();
   const navigate = useNavigate();
+  const { t, language } = useTranslation();
 
   // State
   const [database, setDatabase] = useState<DatabaseConnection | null>(null);
@@ -86,16 +87,16 @@ export const TableDataBrowserPage: React.FC = () => {
   // Column definitions configuration
   const defaultColumns: ColumnItem[] = [
     { key: 'MaNhanVien', title: 'MaNhanVien', visible: true, required: true },
-    { key: 'Name', title: 'Họ và Tên', visible: true },
-    { key: 'Xuong', title: 'Xưởng', visible: true },
-    { key: 'DeptName0', title: 'Phòng / Tổ', visible: true },
-    { key: 'Status', title: 'Tình trạng', visible: true },
-    { key: 'IsDisplay', title: 'Hiển thị', visible: true },
-    { key: 'SalaryGrade', title: 'Bậc lương', visible: true },
-    { key: 'BirthDate', title: 'Ngày sinh', visible: false },
-    { key: 'Tel', title: 'Số ĐT', visible: false },
-    { key: 'Address', title: 'Địa chỉ', visible: false },
-    { key: 'JoinedDate', title: 'Ngày vào làm', visible: false },
+    { key: 'Name', title: language === 'vi' ? 'Họ và Tên' : 'Full Name', visible: true },
+    { key: 'Xuong', title: language === 'vi' ? 'Xưởng' : 'Workshop', visible: true },
+    { key: 'DeptName0', title: language === 'vi' ? 'Phòng / Tổ' : 'Department', visible: true },
+    { key: 'Status', title: language === 'vi' ? 'Tình trạng' : 'Status', visible: true },
+    { key: 'IsDisplay', title: language === 'vi' ? 'Hiển thị' : 'Display', visible: true },
+    { key: 'SalaryGrade', title: language === 'vi' ? 'Bậc lương' : 'Salary Grade', visible: true },
+    { key: 'BirthDate', title: language === 'vi' ? 'Ngày sinh' : 'Birth Date', visible: false },
+    { key: 'Tel', title: language === 'vi' ? 'Số ĐT' : 'Phone', visible: false },
+    { key: 'Address', title: language === 'vi' ? 'Địa chỉ' : 'Address', visible: false },
+    { key: 'JoinedDate', title: language === 'vi' ? 'Ngày vào làm' : 'Joined Date', visible: false },
   ];
   const [columnConfig, setColumnConfig] = useState<ColumnItem[]>(defaultColumns);
 
@@ -121,7 +122,7 @@ export const TableDataBrowserPage: React.FC = () => {
       setData(res.data);
       setTotal(res.total);
     } catch (err) {
-      message.error('Failed to load table data');
+      message.error(language === 'vi' ? 'Không thể tải dữ liệu bảng' : 'Failed to load table data');
     } finally {
       setLoading(false);
     }
@@ -134,21 +135,24 @@ export const TableDataBrowserPage: React.FC = () => {
   // Handlers
   const handleRefresh = () => {
     fetchData();
-    message.success('Data refreshed');
+    message.success(language === 'vi' ? 'Đã làm mới dữ liệu' : 'Data refreshed');
   };
 
   const handleExport = () => {
-    message.loading({ content: 'Exporting records to Excel...', key: 'export' });
+    message.loading({ content: language === 'vi' ? 'Đang xuất file Excel...' : 'Exporting records to Excel...', key: 'export' });
     setTimeout(() => {
-      message.success({ content: `Exported ${total} rows to CSV successfully!`, key: 'export' });
+      message.success({
+        content: language === 'vi' ? `Đã xuất ${total} dòng ra file CSV thành công!` : `Exported ${total} rows to CSV successfully!`,
+        key: 'export',
+      });
     }, 800);
   };
 
   const handleImport = () => {
     Modal.info({
-      title: 'Import Records into dbo.' + tableName,
-      content: 'Supports CSV, XLSX, and JSON file formats. (Demo Mode: upload backend mock)',
-      okText: 'Understood',
+      title: language === 'vi' ? `Nhập dữ liệu vào bảng dbo.${tableName}` : `Import Records into dbo.${tableName}`,
+      content: language === 'vi' ? 'Hỗ trợ định dạng CSV, XLSX và JSON. (Chế độ demo: mock backend upload)' : 'Supports CSV, XLSX, and JSON file formats. (Demo Mode: upload backend mock)',
+      okText: language === 'vi' ? 'Đã hiểu' : 'Understood',
     });
   };
 
@@ -210,7 +214,7 @@ export const TableDataBrowserPage: React.FC = () => {
           break;
         case 'Name':
           cols.push({
-            title: 'Họ và Tên',
+            title: language === 'vi' ? 'Họ và Tên' : 'Full Name',
             dataIndex: 'Name',
             key: 'Name',
             width: 180,
@@ -221,19 +225,19 @@ export const TableDataBrowserPage: React.FC = () => {
           break;
         case 'Xuong':
           cols.push({
-            title: 'Xưởng',
+            title: language === 'vi' ? 'Xưởng' : 'Workshop',
             dataIndex: 'Xuong',
             key: 'Xuong',
             width: 90,
             align: 'center' as const,
             sorter: true,
             sortOrder: sortField === 'Xuong' ? sortOrder : null,
-            render: (val: number) => <Tag color="blue">Xưởng {val}</Tag>,
+            render: (val: number) => <Tag color="blue">{language === 'vi' ? `Xưởng ${val}` : `Shop ${val}`}</Tag>,
           });
           break;
         case 'DeptName0':
           cols.push({
-            title: 'Phòng / Tổ',
+            title: language === 'vi' ? 'Phòng / Tổ' : 'Department',
             dataIndex: 'DeptName0',
             key: 'DeptName0',
             width: 160,
@@ -241,7 +245,7 @@ export const TableDataBrowserPage: React.FC = () => {
           break;
         case 'Status':
           cols.push({
-            title: 'Tình trạng',
+            title: language === 'vi' ? 'Tình trạng' : 'Status',
             dataIndex: 'Status',
             key: 'Status',
             width: 120,
@@ -250,21 +254,21 @@ export const TableDataBrowserPage: React.FC = () => {
           break;
         case 'IsDisplay':
           cols.push({
-            title: 'Hiển thị',
+            title: language === 'vi' ? 'Hiển thị' : 'Display',
             dataIndex: 'IsDisplay',
             key: 'IsDisplay',
             width: 100,
             align: 'center' as const,
             render: (val: boolean) => (
               <Tag color={val ? 'green' : 'default'} style={{ margin: 0 }}>
-                {val ? 'Yes' : 'No'}
+                {val ? (language === 'vi' ? 'Có' : 'Yes') : (language === 'vi' ? 'Không' : 'No')}
               </Tag>
             ),
           });
           break;
         case 'SalaryGrade':
           cols.push({
-            title: 'Bậc lương',
+            title: language === 'vi' ? 'Bậc lương' : 'Grade',
             dataIndex: 'SalaryGrade',
             key: 'SalaryGrade',
             width: 100,
@@ -288,7 +292,7 @@ export const TableDataBrowserPage: React.FC = () => {
 
     // Actions column
     cols.push({
-      title: 'Actions',
+      title: t.common.actions,
       key: 'actions',
       fixed: 'right' as const,
       width: 70,
@@ -298,7 +302,7 @@ export const TableDataBrowserPage: React.FC = () => {
           {
             key: 'view',
             icon: <EyeOutlined />,
-            label: 'View Details',
+            label: t.table.recordDetails,
             onClick: () => {
               setSelectedRecord(record);
               setDetailDrawerOpen(true);
@@ -307,18 +311,18 @@ export const TableDataBrowserPage: React.FC = () => {
           {
             key: 'edit',
             icon: <EditOutlined />,
-            label: 'Edit Row',
+            label: t.table.editRow,
             onClick: () => handleOpenEdit(record),
           },
           { type: 'divider' as const },
           {
             key: 'delete',
             icon: <DeleteOutlined style={{ color: '#ef4444' }} />,
-            label: <span style={{ color: '#ef4444' }}>Delete Row</span>,
+            label: <span style={{ color: '#ef4444' }}>{t.table.deleteRow}</span>,
             onClick: () => {
               Modal.confirm({
-                title: 'Delete this record?',
-                content: `Are you sure you want to delete ${record.MaNhanVien}?`,
+                title: t.table.deleteConfirmTitle,
+                content: language === 'vi' ? `Bạn có chắc chắn muốn xóa bản ghi ${record.MaNhanVien}?` : `Are you sure you want to delete ${record.MaNhanVien}?`,
                 okType: 'danger',
                 onOk: () => handleDeleteRecord(record.MaNhanVien),
               });
@@ -337,7 +341,7 @@ export const TableDataBrowserPage: React.FC = () => {
     });
 
     return cols;
-  }, [columnConfig, sortField, sortOrder]);
+  }, [columnConfig, sortField, sortOrder, language]);
 
   return (
     <div>
@@ -346,32 +350,32 @@ export const TableDataBrowserPage: React.FC = () => {
         title={tableName}
         subtitle={`dbo.${tableName} • SQL Server 2022 Table`}
         breadcrumbs={[
-          { title: 'Databases', path: '/databases' },
+          { title: t.nav.databases, path: '/databases' },
           { title: database?.name || databaseId, path: `/databases/${databaseId}` },
-          { title: 'Tables', path: `/databases/${databaseId}` },
+          { title: t.database.tables, path: `/databases/${databaseId}` },
           { title: tableName },
         ]}
-        badge={<Tag color="blue" style={{ fontWeight: 600 }}>326,842 rows</Tag>}
+        badge={<Tag color="blue" style={{ fontWeight: 600 }}>326,842 {t.table.rowCount}</Tag>}
         extra={
           <Space>
             <Button
               icon={<LayoutOutlined />}
               onClick={() => setShowExplorer(!showExplorer)}
             >
-              {showExplorer ? 'Hide Explorer' : 'Show Explorer'}
+              {showExplorer ? t.table.hideExplorer : t.table.showExplorer}
             </Button>
             <Button icon={<DownloadOutlined />} onClick={handleExport}>
-              Export
+              {t.common.export}
             </Button>
             <Button icon={<UploadOutlined />} onClick={handleImport}>
-              Import
+              {t.common.import}
             </Button>
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={handleOpenCreate}
             >
-              Add Row
+              {t.table.addRow}
             </Button>
           </Space>
         }
@@ -417,13 +421,13 @@ export const TableDataBrowserPage: React.FC = () => {
               <Radio.Button value="data">
                 <Space size={6}>
                   <TableOutlined />
-                  <span>Data ({total})</span>
+                  <span>{t.table.dataTab} ({total})</span>
                 </Space>
               </Radio.Button>
               <Radio.Button value="schema">
                 <Space size={6}>
                   <InfoCircleOutlined />
-                  <span>Schema & Metadata</span>
+                  <span>{t.table.schemaTab}</span>
                 </Space>
               </Radio.Button>
             </Radio.Group>
@@ -437,9 +441,9 @@ export const TableDataBrowserPage: React.FC = () => {
                   onChange={(e) => setDensity(e.target.value)}
                   style={{ marginRight: 4 }}
                 >
-                  <Radio.Button value="compact">Compact</Radio.Button>
-                  <Radio.Button value="normal">Normal</Radio.Button>
-                  <Radio.Button value="comfortable">Comfortable</Radio.Button>
+                  <Radio.Button value="compact">{t.table.compact}</Radio.Button>
+                  <Radio.Button value="normal">{t.table.normal}</Radio.Button>
+                  <Radio.Button value="comfortable">{t.table.comfortable}</Radio.Button>
                 </Radio.Group>
 
                 {/* Column Visibility */}
@@ -448,7 +452,7 @@ export const TableDataBrowserPage: React.FC = () => {
                   icon={<AppstoreOutlined />}
                   onClick={() => setColumnDrawerOpen(true)}
                 >
-                  Columns
+                  {t.table.columnsBtn}
                 </Button>
 
                 {/* Filter Builder Button */}
@@ -459,12 +463,12 @@ export const TableDataBrowserPage: React.FC = () => {
                     icon={<FilterOutlined />}
                     onClick={() => setFilterDrawerOpen(true)}
                   >
-                    Filter
+                    {t.table.filterBtn}
                   </Button>
                 </Badge>
 
                 {/* Refresh */}
-                <Tooltip title="Refresh Table">
+                <Tooltip title={t.common.refresh}>
                   <Button
                     size="small"
                     icon={<ReloadOutlined />}
@@ -490,20 +494,20 @@ export const TableDataBrowserPage: React.FC = () => {
               >
                 <Input
                   prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
-                  placeholder="Search table by MaNhanVien, Name, Dept..."
+                  placeholder={t.table.searchTable}
                   allowClear
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  style={{ maxWidth: 360, borderRadius: 6 }}
+                  style={{ maxWidth: 380, borderRadius: 6 }}
                 />
 
                 {/* Active filter tags */}
                 {filters.length > 0 && (
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>Active Filters:</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{t.table.activeFilters}</Text>
                     {filters.map((f) => (
                       <Tag
                         key={f.id}
@@ -515,7 +519,7 @@ export const TableDataBrowserPage: React.FC = () => {
                       </Tag>
                     ))}
                     <Button type="link" size="small" onClick={() => setFilters([])} style={{ padding: 0 }}>
-                      Clear all
+                      {t.table.clearAll}
                     </Button>
                   </div>
                 )}
@@ -550,7 +554,7 @@ export const TableDataBrowserPage: React.FC = () => {
               {schema ? (
                 <TableSchemaView schema={schema} />
               ) : (
-                <div style={{ padding: 40, textAlign: 'center' }}>Loading schema...</div>
+                <div style={{ padding: 40, textAlign: 'center' }}>{t.common.loading}</div>
               )}
             </div>
           )}

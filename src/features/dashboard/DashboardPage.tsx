@@ -40,11 +40,13 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { AddConnectionModal } from '@/components/database/AddConnectionModal';
 import { databaseService } from '@/services/databaseService';
 import { DatabaseConnection, DatabaseStats } from '@/types/database';
+import { useTranslation } from '@/locales';
 
 const { Title, Text } = Typography;
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t, language } = useTranslation();
   const [stats, setStats] = useState<DatabaseStats | null>(null);
   const [databases, setDatabases] = useState<DatabaseConnection[]>([]);
   const [activityData, setActivityData] = useState<any[]>([]);
@@ -69,7 +71,7 @@ export const DashboardPage: React.FC = () => {
 
   const healthColumns = [
     {
-      title: 'Database',
+      title: language === 'vi' ? 'Cơ sở dữ liệu' : 'Database',
       dataIndex: 'name',
       key: 'name',
       render: (text: string, record: DatabaseConnection) => (
@@ -87,32 +89,32 @@ export const DashboardPage: React.FC = () => {
       ),
     },
     {
-      title: 'Server',
+      title: language === 'vi' ? 'Máy chủ' : 'Server',
       dataIndex: 'serverHost',
       key: 'serverHost',
       render: (host: string) => <span className="font-mono">{host}</span>,
     },
     {
-      title: 'Status',
+      title: language === 'vi' ? 'Trạng thái' : 'Status',
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => <StatusBadge status={status} />,
     },
     {
-      title: 'Size',
+      title: language === 'vi' ? 'Dung lượng' : 'Size',
       dataIndex: 'sizeGb',
       key: 'sizeGb',
       render: (size: number) => <span style={{ fontWeight: 500 }}>{size} GB</span>,
     },
     {
-      title: 'Connections',
+      title: language === 'vi' ? 'Kết nối' : 'Connections',
       dataIndex: 'activeConnections',
       key: 'activeConnections',
       align: 'center' as const,
       render: (val: number) => <Tag color="geekblue">{val}</Tag>,
     },
     {
-      title: 'Action',
+      title: language === 'vi' ? 'Thao tác' : 'Action',
       key: 'action',
       align: 'right' as const,
       render: (_: any, record: DatabaseConnection) => (
@@ -121,7 +123,7 @@ export const DashboardPage: React.FC = () => {
           size="small"
           onClick={() => navigate(`/databases/${record.id}`)}
         >
-          Explore <ArrowRightOutlined />
+          {t.database.exploreBtn} <ArrowRightOutlined />
         </Button>
       ),
     },
@@ -131,8 +133,8 @@ export const DashboardPage: React.FC = () => {
     <div>
       {/* Page Header */}
       <PageHeader
-        title="Database Overview"
-        subtitle="Monitor database connections, activity and system health."
+        title={t.dashboard.title}
+        subtitle={t.dashboard.subtitle}
         extra={
           <Space>
             <Button
@@ -140,7 +142,7 @@ export const DashboardPage: React.FC = () => {
               icon={<PlusOutlined />}
               onClick={() => setAddModalOpen(true)}
             >
-              Add Connection
+              {t.dashboard.addConnection}
             </Button>
           </Space>
         }
@@ -150,7 +152,7 @@ export const DashboardPage: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={4}>
           <MetricCard
-            title="Connected Databases"
+            title={t.dashboard.connectedDatabases}
             value={stats?.connectedDatabases ?? 8}
             loading={loading}
             icon={<DatabaseOutlined style={{ color: '#1677ff' }} />}
@@ -168,37 +170,37 @@ export const DashboardPage: React.FC = () => {
 
         <Col xs={24} sm={12} lg={5}>
           <MetricCard
-            title="Active Connections"
+            title={t.dashboard.activeConnections}
             value={stats?.activeConnections ?? 42}
             loading={loading}
             icon={<ThunderboltOutlined style={{ color: '#10b981' }} />}
-            subtitle="Across all SQL Server instances"
+            subtitle={language === 'vi' ? 'Trên toàn bộ máy chủ SQL Server' : 'Across all SQL Server instances'}
           />
         </Col>
 
         <Col xs={24} sm={12} lg={5}>
           <MetricCard
-            title="Queries / Minute"
+            title={t.dashboard.queriesPerMin}
             value={(stats?.queriesPerMinute ?? 1482).toLocaleString()}
             loading={loading}
             icon={<LineChartOutlined style={{ color: '#8b5cf6' }} />}
-            subtitle="+8.4% compared to last hour"
+            subtitle={language === 'vi' ? '+8.4% so với giờ trước' : '+8.4% compared to last hour'}
           />
         </Col>
 
         <Col xs={24} sm={12} lg={4}>
           <MetricCard
-            title="Slow Queries"
+            title={t.dashboard.slowQueries}
             value={stats?.slowQueries ?? 12}
             loading={loading}
             icon={<ClockCircleOutlined style={{ color: '#f59e0b' }} />}
-            subtitle="Execution time > 1,500ms"
+            subtitle={language === 'vi' ? 'Thời gian chạy > 1,500ms' : 'Execution time > 1,500ms'}
           />
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
           <MetricCard
-            title="Storage Used"
+            title={t.dashboard.storageUsed}
             value={`${stats?.storageUsedGb ?? 482} GB / ${(stats?.storageTotalGb ?? 1000) / 1000} TB`}
             loading={loading}
             icon={<HddOutlined style={{ color: '#0ea5e9' }} />}
@@ -222,8 +224,8 @@ export const DashboardPage: React.FC = () => {
           <Card
             title={
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 14, fontWeight: 600 }}>Database Activity (Queries / Minute)</span>
-                <Tag color="blue">Real-time (10m window)</Tag>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>{t.dashboard.activityTitle}</span>
+                <Tag color="blue">{language === 'vi' ? 'Thời gian thực (10 phút)' : 'Real-time (10m window)'}</Tag>
               </div>
             }
             style={{ borderRadius: 8, border: '1px solid #e2e8f0' }}
@@ -253,7 +255,7 @@ export const DashboardPage: React.FC = () => {
                   <Area
                     type="monotone"
                     dataKey="queriesPerMin"
-                    name="Queries/min"
+                    name={language === 'vi' ? 'Truy vấn/phút' : 'Queries/min'}
                     stroke="#1677ff"
                     strokeWidth={2}
                     fillOpacity={1}
@@ -270,8 +272,8 @@ export const DashboardPage: React.FC = () => {
           <Card
             title={
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 14, fontWeight: 600 }}>Storage Usage by Database</span>
-                <span style={{ fontSize: 12, color: '#64748b' }}>Capacity breakdown</span>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>{t.dashboard.storageTitle}</span>
+                <span style={{ fontSize: 12, color: '#64748b' }}>{language === 'vi' ? 'Dung lượng GB' : 'Capacity GB'}</span>
               </div>
             }
             style={{ borderRadius: 8, border: '1px solid #e2e8f0' }}
@@ -284,7 +286,7 @@ export const DashboardPage: React.FC = () => {
                   <XAxis type="number" stroke="#94a3b8" fontSize={12} unit=" GB" />
                   <YAxis type="category" dataKey="name" width={110} stroke="#475569" fontSize={11} />
                   <Tooltip
-                    formatter={(val) => [`${val} GB`, 'Allocated Size']}
+                    formatter={(val) => [`${val} GB`, language === 'vi' ? 'Dung lượng' : 'Allocated Size']}
                     contentStyle={{
                       backgroundColor: '#1e293b',
                       borderRadius: 6,
@@ -310,10 +312,10 @@ export const DashboardPage: React.FC = () => {
         {/* Database Health Table */}
         <Col xs={24} lg={17}>
           <Card
-            title={<span style={{ fontSize: 14, fontWeight: 600 }}>Database Health</span>}
+            title={<span style={{ fontSize: 14, fontWeight: 600 }}>{t.dashboard.healthTitle}</span>}
             extra={
               <Button type="link" size="small" onClick={() => navigate('/databases')}>
-                View All Databases
+                {t.dashboard.viewAllDatabases}
               </Button>
             }
             style={{ borderRadius: 8, border: '1px solid #e2e8f0' }}
@@ -332,7 +334,7 @@ export const DashboardPage: React.FC = () => {
         {/* Quick Actions */}
         <Col xs={24} lg={7}>
           <Card
-            title={<span style={{ fontSize: 14, fontWeight: 600 }}>Quick Actions</span>}
+            title={<span style={{ fontSize: 14, fontWeight: 600 }}>{t.dashboard.quickActions}</span>}
             style={{ borderRadius: 8, border: '1px solid #e2e8f0', height: '100%' }}
             styles={{ body: { padding: 16 } }}
           >
@@ -344,8 +346,8 @@ export const DashboardPage: React.FC = () => {
                 onClick={() => setAddModalOpen(true)}
               >
                 <div>
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>Add Database Connection</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>Connect another SQL Server instance</div>
+                  <div style={{ fontWeight: 500, fontSize: 13 }}>{t.dashboard.addConnection}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.dashboard.addConnectionSub}</div>
                 </div>
               </Button>
 
@@ -356,8 +358,8 @@ export const DashboardPage: React.FC = () => {
                 onClick={() => navigate('/compare')}
               >
                 <div>
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>Compare Databases</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>Inspect schema and table differences</div>
+                  <div style={{ fontWeight: 500, fontSize: 13 }}>{t.dashboard.compareDatabases}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.dashboard.compareDatabasesSub}</div>
                 </div>
               </Button>
 
@@ -368,8 +370,8 @@ export const DashboardPage: React.FC = () => {
                 onClick={() => navigate('/audit-logs')}
               >
                 <div>
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>Open Audit Logs</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>Review user query execution history</div>
+                  <div style={{ fontWeight: 500, fontSize: 13 }}>{t.dashboard.openAuditLogs}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.dashboard.openAuditLogsSub}</div>
                 </div>
               </Button>
 
@@ -380,8 +382,8 @@ export const DashboardPage: React.FC = () => {
                 onClick={() => navigate('/monitoring')}
               >
                 <div>
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>View Monitoring</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>CPU, memory & slow query diagnostics</div>
+                  <div style={{ fontWeight: 500, fontSize: 13 }}>{t.dashboard.viewMonitoring}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.dashboard.viewMonitoringSub}</div>
                 </div>
               </Button>
             </div>

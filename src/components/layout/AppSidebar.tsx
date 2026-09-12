@@ -15,12 +15,14 @@ import {
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/stores/useAppStore';
+import { useTranslation } from '@/locales';
 import { designConstants } from '@/styles/theme';
 
 const { Sider } = Layout;
 
 export const AppSidebar: React.FC = () => {
   const { sidebarCollapsed, toggleSidebar } = useAppStore();
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -43,32 +45,32 @@ export const AppSidebar: React.FC = () => {
     {
       key: '/dashboard',
       icon: <DashboardOutlined style={{ fontSize: 16 }} />,
-      label: 'Dashboard',
+      label: t.nav.dashboard,
     },
     {
       key: '/databases',
       icon: <DatabaseOutlined style={{ fontSize: 16 }} />,
-      label: 'Databases',
+      label: t.nav.databases,
     },
     {
       key: '/compare',
       icon: <DiffOutlined style={{ fontSize: 16 }} />,
-      label: 'Compare',
+      label: t.nav.compare,
     },
     {
       key: '/sync',
       icon: <SyncOutlined style={{ fontSize: 16 }} />,
-      label: 'Sync',
+      label: t.nav.sync,
     },
     {
       key: '/audit-logs',
       icon: <HistoryOutlined style={{ fontSize: 16 }} />,
-      label: 'Audit Logs',
+      label: t.nav.auditLogs,
     },
     {
       key: '/monitoring',
       icon: <LineChartOutlined style={{ fontSize: 16 }} />,
-      label: 'Monitoring',
+      label: t.nav.monitoring,
     },
     {
       type: 'divider' as const,
@@ -76,17 +78,17 @@ export const AppSidebar: React.FC = () => {
     {
       key: '/users',
       icon: <TeamOutlined style={{ fontSize: 16 }} />,
-      label: 'Users',
+      label: t.nav.users,
     },
     {
       key: '/roles',
       icon: <SafetyCertificateOutlined style={{ fontSize: 16 }} />,
-      label: 'Roles & Perms',
+      label: t.nav.roles,
     },
     {
       key: '/settings',
       icon: <SettingOutlined style={{ fontSize: 16 }} />,
-      label: 'Settings',
+      label: t.nav.settings,
     },
   ];
 
@@ -130,7 +132,7 @@ export const AppSidebar: React.FC = () => {
         }}
       >
         {!sidebarCollapsed && (
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>DBHub v1.0 Enterprise</span>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>DBHub Enterprise</span>
         )}
         <Button
           type="text"

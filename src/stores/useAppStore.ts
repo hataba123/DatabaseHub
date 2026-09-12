@@ -18,7 +18,14 @@ interface AppState {
   setActiveDatabaseId: (id: string | null) => void;
   breadcrumbs: BreadcrumbItem[];
   setBreadcrumbs: (crumbs: BreadcrumbItem[]) => void;
+  language: 'vi' | 'en';
+  setLanguage: (lang: 'vi' | 'en') => void;
 }
+
+const getInitialLang = (): 'vi' | 'en' => {
+  const saved = localStorage.getItem('dbhub_lang');
+  return saved === 'en' ? 'en' : 'vi';
+};
 
 export const useAppStore = create<AppState>((set) => ({
   environment: 'Production',
@@ -30,6 +37,11 @@ export const useAppStore = create<AppState>((set) => ({
   setGlobalSearchOpen: (globalSearchOpen) => set({ globalSearchOpen }),
   activeDatabaseId: 'pmsc',
   setActiveDatabaseId: (activeDatabaseId) => set({ activeDatabaseId }),
-  breadcrumbs: [{ label: 'Dashboard', path: '/dashboard' }],
+  breadcrumbs: [{ label: 'Bảng tổng quan', path: '/dashboard' }],
   setBreadcrumbs: (breadcrumbs) => set({ breadcrumbs }),
+  language: getInitialLang(),
+  setLanguage: (language) => {
+    localStorage.setItem('dbhub_lang', language);
+    set({ language });
+  },
 }));

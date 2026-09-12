@@ -13,7 +13,6 @@ import {
   Dropdown,
   Modal,
   message,
-  Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -21,9 +20,7 @@ import {
   AppstoreOutlined,
   BarsOutlined,
   DatabaseOutlined,
-  CheckCircleOutlined,
   MoreOutlined,
-  ArrowRightOutlined,
   ThunderboltOutlined,
   ClockCircleOutlined,
   DeleteOutlined,
@@ -35,13 +32,15 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { EmptyState } from '@/components/common/EmptyState';
 import { AddConnectionModal } from '@/components/database/AddConnectionModal';
 import { databaseService } from '@/services/databaseService';
-import { DatabaseConnection, DatabaseEnvironment, DatabaseStatus } from '@/types/database';
+import { DatabaseConnection } from '@/types/database';
 import { formatTimeAgo } from '@/utils/formatters';
+import { useTranslation } from '@/locales';
 
 const { Text } = Typography;
 
 export const DatabaseListPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t, language } = useTranslation();
   const [databases, setDatabases] = useState<DatabaseConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -68,7 +67,11 @@ export const DatabaseListPage: React.FC = () => {
     const res = await databaseService.testConnection(db);
     setTestingId(null);
     if (res.success) {
-      message.success(`Connection to ${db.name} verified! Response: ${res.latencyMs}ms`);
+      message.success(
+        language === 'vi'
+          ? `Kết nối tới "${db.name}" thành công! Độ trễ: ${res.latencyMs}ms`
+          : `Connection to "${db.name}" verified! Latency: ${res.latencyMs}ms`
+      );
     } else {
       message.error(`Failed to connect to ${db.name}`);
     }
@@ -76,13 +79,17 @@ export const DatabaseListPage: React.FC = () => {
 
   const handleDelete = (db: DatabaseConnection) => {
     Modal.confirm({
-      title: `Delete connection "${db.name}"?`,
-      content: `Are you sure you want to remove connection to ${db.serverHost}? All saved credentials will be purged.`,
+      title: language === 'vi' ? `Xóa kết nối "${db.name}"?` : `Delete connection "${db.name}"?`,
+      content:
+        language === 'vi'
+          ? `Bạn có chắc chắn muốn xóa kết nối tới máy chủ ${db.serverHost}? Mọi thông tin cấu hình sẽ bị gỡ bỏ.`
+          : `Are you sure you want to remove connection to ${db.serverHost}? All saved credentials will be purged.`,
       okType: 'danger',
-      okText: 'Delete Connection',
+      okText: language === 'vi' ? 'Xác nhận xóa' : 'Delete Connection',
+      cancelText: t.common.cancel,
       onOk: async () => {
         await databaseService.deleteConnection(db.id);
-        message.success(`Connection "${db.name}" deleted.`);
+        message.success(language === 'vi' ? `Đã xóa kết nối "${db.name}".` : `Connection "${db.name}" deleted.`);
         fetchDatabases();
       },
     });
@@ -117,16 +124,16 @@ export const DatabaseListPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Databases"
-        subtitle="Manage database connections, explore tables, views, procedures and monitor instances."
-        breadcrumbs={[{ title: 'Dashboard', path: '/dashboard' }, { title: 'Databases' }]}
+        title={t.database.title}
+        subtitle={t.database.subtitle}
+        breadcrumbs={[{ title: t.nav.dashboard, path: '/dashboard' }, { title: t.database.title }]}
         extra={
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setAddModalOpen(true)}
           >
-            Add Database Connection
+            {t.database.addBtn}
           </Button>
         }
       />
@@ -149,7 +156,7 @@ export const DatabaseListPage: React.FC = () => {
           <Space wrap size={12}>
             <Input
               prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
-              placeholder="Search databases by name or host..."
+              placeholder={t.database.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               allowClear
@@ -159,21 +166,21 @@ export const DatabaseListPage: React.FC = () => {
             <Select
               value={statusFilter}
               onChange={setStatusFilter}
-              style={{ width: 130 }}
+              style={{ width: 140 }}
               options={[
-                { label: 'All Status', value: 'All' },
-                { label: 'Online', value: 'Online' },
-                { label: 'Warning', value: 'Warning' },
-                { label: 'Offline', value: 'Offline' },
+                { label: t.database.allStatus, value: 'All' },
+                { label: t.common.online, value: 'Online' },
+                { label: t.common.warning, value: 'Warning' },
+                { label: t.common.offline, value: 'Offline' },
               ]}
             />
 
             <Select
               value={envFilter}
               onChange={setEnvFilter}
-              style={{ width: 140 }}
+              style={{ width: 150 }}
               options={[
-                { label: 'All Envs', value: 'All' },
+                { label: t.database.allEnvs, value: 'All' },
                 { label: 'Production', value: 'Production' },
                 { label: 'Staging', value: 'Staging' },
                 { label: 'Development', value: 'Development' },
@@ -183,12 +190,12 @@ export const DatabaseListPage: React.FC = () => {
             <Select
               value={sortBy}
               onChange={setSortBy}
-              style={{ width: 150 }}
+              style={{ width: 160 }}
               options={[
-                { label: 'Sort: Name', value: 'name' },
-                { label: 'Sort: Size (High)', value: 'size' },
-                { label: 'Sort: Tables Count', value: 'tables' },
-                { label: 'Sort: Connections', value: 'connections' },
+                { label: t.database.sortName, value: 'name' },
+                { label: t.database.sortSize, value: 'size' },
+                { label: t.database.sortTables, value: 'tables' },
+                { label: t.database.sortConnections, value: 'connections' },
               ]}
             />
           </Space>
@@ -212,9 +219,9 @@ export const DatabaseListPage: React.FC = () => {
       {/* Database Content */}
       {filteredDatabases.length === 0 ? (
         <EmptyState
-          title="No database connections"
-          description="Connect your first SQL Server database to get started."
-          actionText="Add Database Connection"
+          title={t.database.noDatabases}
+          description={t.database.noDatabasesSub}
+          actionText={t.database.addBtn}
           onAction={() => setAddModalOpen(true)}
         />
       ) : viewMode === 'grid' ? (
@@ -224,26 +231,26 @@ export const DatabaseListPage: React.FC = () => {
               {
                 key: 'test',
                 icon: <ThunderboltOutlined />,
-                label: 'Test Connection',
+                label: t.database.testConnection,
                 onClick: () => handleTestConnection(db),
               },
               {
                 key: 'explore',
                 icon: <DatabaseOutlined />,
-                label: 'Explore Objects',
+                label: t.database.exploreBtn,
                 onClick: () => navigate(`/databases/${db.id}`),
               },
               {
                 key: 'settings',
                 icon: <SettingOutlined />,
-                label: 'Connection Properties',
+                label: language === 'vi' ? 'Thuộc tính kết nối' : 'Connection Properties',
                 onClick: () => navigate(`/databases/${db.id}`),
               },
               { type: 'divider' as const },
               {
                 key: 'delete',
                 icon: <DeleteOutlined style={{ color: '#ef4444' }} />,
-                label: <span style={{ color: '#ef4444' }}>Delete</span>,
+                label: <span style={{ color: '#ef4444' }}>{t.common.delete}</span>,
                 onClick: () => handleDelete(db),
               },
             ];
@@ -274,7 +281,7 @@ export const DatabaseListPage: React.FC = () => {
                         style={{
                           fontSize: 15,
                           fontWeight: 600,
-                          color: '#0f172a',
+                          color: '#1677ff',
                           cursor: 'pointer',
                         }}
                       >
@@ -317,25 +324,25 @@ export const DatabaseListPage: React.FC = () => {
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 11, color: '#94a3b8' }}>Size</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.database.size}</div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
                         {db.sizeGb} GB
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 11, color: '#94a3b8' }}>Tables</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.database.tables}</div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
                         {db.tablesCount}
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 11, color: '#94a3b8' }}>Views</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.database.views}</div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
                         {db.viewsCount}
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 11, color: '#94a3b8' }}>Procs</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.database.procs}</div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
                         {db.proceduresCount}
                       </div>
@@ -361,14 +368,14 @@ export const DatabaseListPage: React.FC = () => {
                         loading={testingId === db.id}
                         onClick={() => handleTestConnection(db)}
                       >
-                        Test
+                        {t.database.testBtn}
                       </Button>
                       <Button
                         size="small"
                         type="primary"
                         onClick={() => navigate(`/databases/${db.id}`)}
                       >
-                        Open
+                        {t.database.openBtn}
                       </Button>
                       <Dropdown menu={{ items: moreMenu }} trigger={['click']}>
                         <Button size="small" type="text" icon={<MoreOutlined />} />
@@ -425,18 +432,18 @@ export const DatabaseListPage: React.FC = () => {
                   <StatusBadge status={db.status} />
                   <div style={{ textAlign: 'right', minWidth: 80 }}>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>{db.sizeGb} GB</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8' }}>{db.tablesCount} tables</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>{db.tablesCount} {t.database.tables.toLowerCase()}</div>
                   </div>
                   <Space>
                     <Button size="small" onClick={() => handleTestConnection(db)}>
-                      Test
+                      {t.database.testBtn}
                     </Button>
                     <Button
                       size="small"
                       type="primary"
                       onClick={() => navigate(`/databases/${db.id}`)}
                     >
-                      Open
+                      {t.database.openBtn}
                     </Button>
                   </Space>
                 </div>
