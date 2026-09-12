@@ -25,6 +25,16 @@ public static class PermissionDefinitions
     public const string MonitoringView = "Monitoring.View";
     public const string SystemManage = "System.Manage";
 
+    // Phase 6 Sync Permissions
+    public const string SyncView = "Sync.View";
+    public const string SyncCreatePlan = "Sync.CreatePlan";
+    public const string SyncExecute = "Sync.Execute";
+    public const string SyncDelete = "Sync.Delete";
+    public const string SyncApprove = "Sync.Approve";
+    public const string SyncViewHistory = "Sync.ViewHistory";
+    public const string SyncCancel = "Sync.Cancel";
+    public const string SyncExecuteProduction = "Sync.ExecuteProduction";
+
     public static readonly IReadOnlyList<string> AllPermissions = new[]
     {
         DatabaseRead,
@@ -42,7 +52,15 @@ public static class PermissionDefinitions
         RoleManage,
         AuditView,
         MonitoringView,
-        SystemManage
+        SystemManage,
+        SyncView,
+        SyncCreatePlan,
+        SyncExecute,
+        SyncDelete,
+        SyncApprove,
+        SyncViewHistory,
+        SyncCancel,
+        SyncExecuteProduction
     };
 
     public static bool IsValidPermission(string permission)

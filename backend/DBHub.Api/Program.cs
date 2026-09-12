@@ -150,6 +150,14 @@ builder.Services.AddSingleton<ISqlValueConverter, SqlValueConverter>();
 builder.Services.AddSingleton<IDynamicCrudSqlBuilder, DynamicCrudSqlBuilder>();
 builder.Services.AddScoped<IDynamicCrudService, DynamicCrudService>();
 
+// Phase 6 Compare & Sync Services
+builder.Services.AddScoped<DBHub.Api.Services.Compare.ICompareService, DBHub.Api.Services.Compare.CompareService>();
+builder.Services.AddSingleton<DBHub.Api.Services.Sync.ISyncDependencyResolver, DBHub.Api.Services.Sync.SyncDependencyResolver>();
+builder.Services.AddScoped<DBHub.Api.Services.Sync.ISyncPlanService, DBHub.Api.Services.Sync.SyncPlanService>();
+builder.Services.AddSingleton<DBHub.Api.Services.Sync.ISyncJobQueue, DBHub.Api.Services.Sync.SyncJobQueue>();
+builder.Services.AddScoped<DBHub.Api.Services.Sync.ISyncExecutionEngine, DBHub.Api.Services.Sync.SyncExecutionEngine>();
+builder.Services.AddHostedService<DBHub.Api.Services.Sync.SyncBackgroundService>();
+
 var app = builder.Build();
 
 // 11. Database & Seed Initialization

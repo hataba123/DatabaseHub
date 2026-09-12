@@ -61,7 +61,15 @@ public static class DbInitializer
                 PermissionDefinitions.DatabaseExport,
                 PermissionDefinitions.DatabaseImport,
                 PermissionDefinitions.AuditView,
-                PermissionDefinitions.MonitoringView
+                PermissionDefinitions.MonitoringView,
+                PermissionDefinitions.SyncView,
+                PermissionDefinitions.SyncCreatePlan,
+                PermissionDefinitions.SyncExecute,
+                PermissionDefinitions.SyncDelete,
+                PermissionDefinitions.SyncApprove,
+                PermissionDefinitions.SyncViewHistory,
+                PermissionDefinitions.SyncCancel,
+                PermissionDefinitions.SyncExecuteProduction
             };
             foreach (var p in dbAdminPerms)
             {
