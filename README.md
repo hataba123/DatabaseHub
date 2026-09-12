@@ -162,6 +162,25 @@ ASP.NET Core 10 Web API (Port 5000)
 | `GET` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/lookups/{column}` | Lấy danh sách gợi ý dữ liệu cho cột Foreign Key |
 | `GET` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/rows/history` | Xem lịch sử thay đổi Before/After của dòng |
 
+### Phase 5 & 6: Compare & Database Sync Engine
+| Phương thức | Endpoint | Mô tả |
+|---|---|---|
+| `GET` | `/api/compare/sessions` | Lấy danh sách phiên so sánh dữ liệu và schema |
+| `POST` | `/api/compare/sessions` | Tạo mới phiên so sánh dữ liệu giữa 2 database |
+| `POST` | `/api/sync/plans` | Tạo kế hoạch đồng bộ động (Draft) từ Compare Session |
+| `GET` | `/api/sync/plans/{id}` | Xem chi tiết kế hoạch đồng bộ và trạng thái |
+| `GET` | `/api/sync/plans/{id}/operations` | Lấy danh sách phân trang các thao tác đồng bộ |
+| `PUT` | `/api/sync/plans/{id}/selection` | Cập nhật chọn / bỏ chọn thao tác trong kế hoạch |
+| `POST` | `/api/sync/plans/{id}/validate` | Thẩm định kế hoạch (schema, chính sách quyền ghi) |
+| `POST` | `/api/sync/plans/{id}/dry-run` | Chạy mô phỏng (Dry Run) trong transaction rollback |
+| `POST` | `/api/sync/plans/{id}/approve` | Quản trị viên duyệt kế hoạch (Two-Person Rule) |
+| `POST` | `/api/sync/plans/{id}/reject` | Từ chối kế hoạch đồng bộ |
+| `POST` | `/api/sync/plans/{id}/execute` | Đưa kế hoạch vào hàng đợi thực thi background worker |
+| `POST` | `/api/sync/plans/{id}/reversal-plan`| Sinh kế hoạch đảo ngược (Business Rollback LIFO) |
+| `GET` | `/api/sync/executions` | Danh sách lịch sử thực thi đồng bộ |
+| `GET` | `/api/sync/executions/{id}` | Lấy tiến trình thời gian thực của lượt đồng bộ |
+| `POST` | `/api/sync/executions/{id}/cancel` | Hủy tiến trình đồng bộ đang chạy |
+
 ---
 
 ## 7. Kiểm thử tự động (Unit Tests)
@@ -172,11 +191,12 @@ Chạy bộ kiểm thử tự động của Backend:
 dotnet test backend/DBHub.slnx
 ```
 
-Bộ unit tests trong `DBHub.Tests` (78 tests) bao quát:
+Bộ unit tests trong `DBHub.Tests` (86 tests passed 100%) bao quát:
 - Whitelist validation cho SQL identifier hợp lệ (chống SQL Injection).
 - Trình sinh câu lệnh động `DynamicCrudSqlBuilder` (Insert, Update, Delete, Bulk Delete, Lookup, Select explicit columns).
 - Trình chuyển đổi và thẩm định kiểu dữ liệu `SqlValueConverter` (kiểm tra độ dài, nullability, precision/scale, identity/default omission).
-- Cơ chế phát hiện No-Op Update `AreValuesEqual`.
+- Phân giải cây phụ thuộc Foreign Key `SyncDependencyResolver` (Topological Sort Kahn: Parent trước Child khi Insert, Child trước Parent khi Delete, Cycle Detection).
+- Quy trình an toàn của Database Sync Engine: DeleteExtra luôn tắt mặc định, máy trạng thái kế hoạch, sinh kế hoạch đảo ngược LIFO, hủy phê duyệt và tăng version khi sửa kế hoạch.
 - Xử lý mã lỗi SQL Server trong `GlobalExceptionFilter` (2601 Duplicate Key, 547 FK Violation, 8152 Data Too Long, 515 Null Not Allowed, 1205 Deadlock).
 
 ---
