@@ -94,6 +94,7 @@ public class DatabaseConnectionsController : ControllerBase
             Encrypt = request.Encrypt,
             TrustServerCertificate = request.TrustServerCertificate,
             IsEnabled = true,
+            AllowWrite = request.AllowWrite,
             Status = "Online",
             CreatedAt = DateTime.UtcNow
         };
@@ -264,6 +265,7 @@ public class DatabaseConnectionsController : ControllerBase
             Encrypt = c.Encrypt,
             TrustServerCertificate = c.TrustServerCertificate,
             IsEnabled = c.IsEnabled,
+            AllowWrite = c.AllowWrite,
             Status = c.Status,
             CreatedAt = c.CreatedAt
         };

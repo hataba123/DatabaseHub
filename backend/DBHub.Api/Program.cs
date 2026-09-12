@@ -5,6 +5,7 @@ using DBHub.Api.Models.Auth;
 using DBHub.Api.Repositories;
 using DBHub.Api.Services;
 using DBHub.Api.Services.Auth;
+using DBHub.Api.Services.Crud;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -143,6 +144,11 @@ builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
+
+// Dynamic CRUD Services
+builder.Services.AddSingleton<ISqlValueConverter, SqlValueConverter>();
+builder.Services.AddSingleton<IDynamicCrudSqlBuilder, DynamicCrudSqlBuilder>();
+builder.Services.AddScoped<IDynamicCrudService, DynamicCrudService>();
 
 var app = builder.Build();
 

@@ -176,13 +176,20 @@ SELECT
         WHEN tp.name IN ('nchar', 'nvarchar') AND c.max_length > 0 THEN c.max_length / 2
         ELSE c.max_length 
     END AS MaxLength,
+    CAST(c.precision AS INT) AS [Precision],
+    CAST(c.scale AS INT) AS [Scale],
     c.is_nullable AS Nullable,
     ISNULL(pk.is_pk, 0) AS IsPrimaryKey,
-    c.is_identity AS IsIdentity
+    c.is_identity AS IsIdentity,
+    c.is_computed AS IsComputed,
+    CASE WHEN tp.name IN ('rowversion', 'timestamp') THEN 1 ELSE 0 END AS IsRowVersion,
+    CASE WHEN c.default_object_id > 0 THEN 1 ELSE 0 END AS HasDefault,
+    dc.definition AS DefaultValue
 FROM sys.columns c
 INNER JOIN sys.tables t ON c.object_id = t.object_id
 INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
 INNER JOIN sys.types tp ON c.user_type_id = tp.user_type_id
+LEFT JOIN sys.default_constraints dc ON c.default_object_id = dc.object_id
 LEFT JOIN (
     SELECT ic.object_id, ic.column_id, 1 AS is_pk
     FROM sys.index_columns ic

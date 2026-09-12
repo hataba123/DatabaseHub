@@ -14,6 +14,7 @@ public class CreateConnectionRequest
     public string? Password { get; set; }
     public bool Encrypt { get; set; } = true;
     public bool TrustServerCertificate { get; set; } = true;
+    public bool AllowWrite { get; set; } = true;
 }
 
 public class ConnectionResponse
@@ -29,6 +30,7 @@ public class ConnectionResponse
     public bool Encrypt { get; set; }
     public bool TrustServerCertificate { get; set; }
     public bool IsEnabled { get; set; }
+    public bool AllowWrite { get; set; } = true;
     public string Status { get; set; } = "Online";
     public DateTime CreatedAt { get; set; }
 }

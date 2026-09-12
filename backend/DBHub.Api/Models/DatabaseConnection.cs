@@ -20,6 +20,7 @@ public class DatabaseConnection
     public bool Encrypt { get; set; } = true;
     public bool TrustServerCertificate { get; set; } = true;
     public bool IsEnabled { get; set; } = true;
+    public bool AllowWrite { get; set; } = true;
     public string Status { get; set; } = "Online";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

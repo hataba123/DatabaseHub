@@ -22,14 +22,32 @@ public class GlobalExceptionFilter : IExceptionFilter
 
         var (statusCode, code, message) = context.Exception switch
         {
+            DynamicCrudException crudEx =>
+                (crudEx.StatusCode, crudEx.ErrorCode, crudEx.Message),
+
             SqlException sqlEx when sqlEx.Number == -2 || sqlEx.Message.Contains("Timeout", StringComparison.OrdinalIgnoreCase) =>
                 (HttpStatusCode.RequestTimeout, "QUERY_TIMEOUT", "The query exceeded the allowed execution time (30s limit)."),
 
             SqlException sqlEx when sqlEx.Number is 4060 or 18456 or 53 =>
                 (HttpStatusCode.BadGateway, "DATABASE_CONNECTION_FAILED", "Unable to establish connection to SQL Server instance."),
 
+            SqlException sqlEx when sqlEx.Number is 2601 or 2627 =>
+                (HttpStatusCode.Conflict, "DUPLICATE_KEY", "A record with this primary key or unique index already exists."),
+
+            SqlException sqlEx when sqlEx.Number == 547 =>
+                (HttpStatusCode.Conflict, "FOREIGN_KEY_VIOLATION", "The operation violates a foreign key constraint (record is referenced by other tables or foreign key target does not exist)."),
+
+            SqlException sqlEx when sqlEx.Number is 8152 or 2628 =>
+                (HttpStatusCode.BadRequest, "DATA_TOO_LONG", "String or binary data would be truncated because it exceeds the maximum column length."),
+
+            SqlException sqlEx when sqlEx.Number == 515 =>
+                (HttpStatusCode.BadRequest, "NULL_NOT_ALLOWED", "Cannot insert or update NULL into a required non-nullable column."),
+
+            SqlException sqlEx when sqlEx.Number == 1205 =>
+                (HttpStatusCode.Conflict, "DEADLOCK_DETECTED", "Transaction was deadlocked and selected as victim. Please retry."),
+
             SqlException sqlEx =>
-                (HttpStatusCode.BadRequest, "SQL_EXECUTION_ERROR", $"SQL Server error: {sqlEx.Message}"),
+                (HttpStatusCode.BadRequest, "SQL_EXECUTION_ERROR", $"SQL Server error ({sqlEx.Number}): {sqlEx.Message}"),
 
             ArgumentException argEx =>
                 (HttpStatusCode.BadRequest, "INVALID_ARGUMENT", argEx.Message),
