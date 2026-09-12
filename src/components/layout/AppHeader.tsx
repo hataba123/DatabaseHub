@@ -30,6 +30,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { useTranslation } from '@/locales';
 import { DatabaseEnvironment } from '@/types/database';
 import { designConstants } from '@/styles/theme';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 const { Header } = Layout;
 const { Text } = Typography;
@@ -185,14 +186,32 @@ export const AppHeader: React.FC = () => {
     </div>
   );
 
+  const { user, roles, logout } = useAuthStore();
+
+  const handleLogout = async () => {
+    await logout();
+    message.success(language === 'vi' ? 'Đã đăng xuất thành công' : 'Signed out successfully');
+    navigate('/login');
+  };
+
+  const displayName = user?.displayName || user?.username || 'User';
+  const displayEmail = user?.email || (user?.username ? `${user.username}@dbhub.enterprise` : '');
+  const primaryRole = roles[0] || 'User';
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w: string) => w[0].toUpperCase())
+    .join('') || 'U';
+
   const userMenuItems = [
     {
       key: 'user-info',
       label: (
         <div style={{ padding: '4px 0' }}>
-          <div style={{ fontWeight: 600, color: '#0f172a' }}>Lê Thành Lợi</div>
-          <div style={{ fontSize: 12, color: '#64748b' }}>loi.le@dbhub.enterprise</div>
-          <Tag color="blue" style={{ marginTop: 4 }}>Super Admin</Tag>
+          <div style={{ fontWeight: 600, color: '#0f172a' }}>{displayName}</div>
+          {displayEmail && <div style={{ fontSize: 12, color: '#64748b' }}>{displayEmail}</div>}
+          <Tag color="blue" style={{ marginTop: 4 }}>{primaryRole}</Tag>
         </div>
       ),
     },
@@ -220,7 +239,7 @@ export const AppHeader: React.FC = () => {
       key: 'logout',
       icon: <LogoutOutlined style={{ color: '#ef4444' }} />,
       label: <span style={{ color: '#ef4444' }}>{t.nav.signOut}</span>,
-      onClick: () => message.success('Signed out (Demo Mode)'),
+      onClick: handleLogout,
     },
   ];
 
@@ -394,11 +413,11 @@ export const AppHeader: React.FC = () => {
               size={30}
               style={{ backgroundColor: '#1677ff', fontSize: 13, fontWeight: 600 }}
             >
-              LL
+              {initials}
             </Avatar>
             <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-              <span style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>Lê Thành Lợi</span>
-              <span style={{ fontSize: 11, color: '#64748b' }}>Super Admin</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>{displayName}</span>
+              <span style={{ fontSize: 11, color: '#64748b' }}>{primaryRole}</span>
             </div>
             <DownOutlined style={{ fontSize: 10, color: '#94a3b8', marginLeft: 2 }} />
           </div>

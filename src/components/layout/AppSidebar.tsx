@@ -18,10 +18,14 @@ import { useAppStore } from '@/stores/useAppStore';
 import { useTranslation } from '@/locales';
 import { designConstants } from '@/styles/theme';
 
+import { useAuthStore } from '@/stores/useAuthStore';
+import { PERMISSIONS } from '@/types/auth';
+
 const { Sider } = Layout;
 
 export const AppSidebar: React.FC = () => {
   const { sidebarCollapsed, toggleSidebar } = useAppStore();
+  const { hasPermission } = useAuthStore();
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -41,56 +45,68 @@ export const AppSidebar: React.FC = () => {
     return path;
   };
 
-  const menuItems = [
+  const rawMenuItems = [
     {
       key: '/dashboard',
       icon: <DashboardOutlined style={{ fontSize: 16 }} />,
       label: t.nav.dashboard,
+      visible: true,
     },
     {
       key: '/databases',
       icon: <DatabaseOutlined style={{ fontSize: 16 }} />,
       label: t.nav.databases,
+      visible: hasPermission(PERMISSIONS.DATABASE_READ) || hasPermission(PERMISSIONS.CONNECTION_VIEW),
     },
     {
       key: '/compare',
       icon: <DiffOutlined style={{ fontSize: 16 }} />,
       label: t.nav.compare,
+      visible: hasPermission(PERMISSIONS.DATABASE_READ),
     },
     {
       key: '/sync',
       icon: <SyncOutlined style={{ fontSize: 16 }} />,
       label: t.nav.sync,
+      visible: hasPermission(PERMISSIONS.DATABASE_INSERT) || hasPermission(PERMISSIONS.DATABASE_UPDATE),
     },
     {
       key: '/audit-logs',
       icon: <HistoryOutlined style={{ fontSize: 16 }} />,
       label: t.nav.auditLogs,
+      visible: hasPermission(PERMISSIONS.AUDIT_VIEW),
     },
     {
       key: '/monitoring',
       icon: <LineChartOutlined style={{ fontSize: 16 }} />,
       label: t.nav.monitoring,
+      visible: hasPermission(PERMISSIONS.MONITORING_VIEW),
     },
     {
       type: 'divider' as const,
+      visible: hasPermission(PERMISSIONS.USER_VIEW) || hasPermission(PERMISSIONS.ROLE_VIEW) || hasPermission(PERMISSIONS.CONNECTION_MANAGE),
     },
     {
       key: '/users',
       icon: <TeamOutlined style={{ fontSize: 16 }} />,
       label: t.nav.users,
+      visible: hasPermission(PERMISSIONS.USER_VIEW),
     },
     {
       key: '/roles',
       icon: <SafetyCertificateOutlined style={{ fontSize: 16 }} />,
       label: t.nav.roles,
+      visible: hasPermission(PERMISSIONS.ROLE_VIEW),
     },
     {
       key: '/settings',
       icon: <SettingOutlined style={{ fontSize: 16 }} />,
       label: t.nav.settings,
+      visible: hasPermission(PERMISSIONS.CONNECTION_MANAGE) || hasPermission(PERMISSIONS.USER_MANAGE) || hasPermission(PERMISSIONS.ROLE_MANAGE),
     },
   ];
+
+  const menuItems = rawMenuItems.filter((item) => item.visible);
 
   return (
     <Sider

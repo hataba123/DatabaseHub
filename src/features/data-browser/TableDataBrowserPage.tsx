@@ -43,6 +43,8 @@ import { databaseService } from '@/services/databaseService';
 import { FilterCondition, TableSchema, DatabaseObjectItem } from '@/types/table';
 import { DatabaseConnection } from '@/types/database';
 import { useTranslation } from '@/locales';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { PERMISSIONS } from '@/types/auth';
 
 const { Text } = Typography;
 
@@ -53,6 +55,12 @@ export const TableDataBrowserPage: React.FC = () => {
   }>();
   const navigate = useNavigate();
   const { t, language } = useTranslation();
+  const { hasPermission } = useAuthStore();
+
+  const canInsert = hasPermission(PERMISSIONS.DATABASE_INSERT, { connectionId: databaseId, table: tableName });
+  const canUpdate = hasPermission(PERMISSIONS.DATABASE_UPDATE, { connectionId: databaseId, table: tableName });
+  const canDelete = hasPermission(PERMISSIONS.DATABASE_DELETE, { connectionId: databaseId, table: tableName });
+  const canExport = hasPermission(PERMISSIONS.DATABASE_EXPORT, { connectionId: databaseId, table: tableName });
 
   // State
   const [database, setDatabase] = useState<DatabaseConnection | null>(null);
@@ -399,13 +407,15 @@ export const TableDataBrowserPage: React.FC = () => {
             key: 'edit',
             icon: <EditOutlined />,
             label: t.table.editRow,
+            disabled: !canUpdate,
             onClick: () => handleOpenEdit(record),
           },
           { type: 'divider' as const },
           {
             key: 'delete',
-            icon: <DeleteOutlined style={{ color: '#ef4444' }} />,
-            label: <span style={{ color: '#ef4444' }}>{t.table.deleteRow}</span>,
+            icon: <DeleteOutlined style={{ color: canDelete ? '#ef4444' : '#94a3b8' }} />,
+            label: <span style={{ color: canDelete ? '#ef4444' : '#94a3b8' }}>{t.table.deleteRow}</span>,
+            disabled: !canDelete,
             onClick: () => {
               Modal.confirm({
                 title: t.table.deleteConfirmTitle,
@@ -447,8 +457,8 @@ export const TableDataBrowserPage: React.FC = () => {
             <Tag color="blue" style={{ fontWeight: 600 }}>
               {total.toLocaleString()} {t.table.rowCount}
             </Tag>
-            <Tag color="cyan" style={{ fontWeight: 600 }}>
-              Phase 2: Read-Only
+            <Tag color="emerald" style={{ fontWeight: 600 }}>
+              RBAC Guarded
             </Tag>
           </Space>
         }
@@ -460,19 +470,26 @@ export const TableDataBrowserPage: React.FC = () => {
             >
               {showExplorer ? t.table.hideExplorer : t.table.showExplorer}
             </Button>
-            <Button icon={<DownloadOutlined />} onClick={handleExport}>
-              {t.common.export}
-            </Button>
-            <Button icon={<UploadOutlined />} onClick={handleImport}>
-              {t.common.import}
-            </Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleOpenCreate}
-            >
-              {t.table.addRow}
-            </Button>
+            <Tooltip title={!canExport ? (language === 'vi' ? 'Bạn không có quyền Xuất dữ liệu (Database.Export)' : 'Lacks Database.Export permission') : ''}>
+              <Button icon={<DownloadOutlined />} onClick={handleExport} disabled={!canExport}>
+                {t.common.export}
+              </Button>
+            </Tooltip>
+            <Tooltip title={!canInsert ? (language === 'vi' ? 'Bạn không có quyền Thêm dữ liệu (Database.Insert)' : 'Lacks Database.Insert permission') : ''}>
+              <Button icon={<UploadOutlined />} onClick={handleImport} disabled={!canInsert}>
+                {t.common.import}
+              </Button>
+            </Tooltip>
+            <Tooltip title={!canInsert ? (language === 'vi' ? 'Bạn không có quyền Thêm bản ghi (Database.Insert)' : 'Lacks Database.Insert permission') : ''}>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={handleOpenCreate}
+                disabled={!canInsert}
+              >
+                {t.table.addRow}
+              </Button>
+            </Tooltip>
           </Space>
         }
       />

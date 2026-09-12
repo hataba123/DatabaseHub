@@ -1,6 +1,9 @@
 import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
+import { LoginPage } from '@/features/auth/LoginPage';
+import { AccessDeniedPage } from '@/components/common/AccessDeniedPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { DatabaseListPage } from '@/features/databases/DatabaseListPage';
 import { DatabaseDetailPage } from '@/features/databases/DatabaseDetailPage';
@@ -12,11 +15,24 @@ import { MonitoringPage } from '@/features/monitoring/MonitoringPage';
 import { UsersPage } from '@/features/users/UsersPage';
 import { RolesPage } from '@/features/roles/RolesPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
+import { PERMISSIONS } from '@/types/auth';
 
 export const router = createBrowserRouter([
   {
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
+    path: '/403',
+    element: <AccessDeniedPage />,
+  },
+  {
     path: '/',
-    element: <MainLayout />,
+    element: (
+      <ProtectedRoute>
+        <MainLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,
@@ -60,19 +76,35 @@ export const router = createBrowserRouter([
       },
       {
         path: 'audit-logs',
-        element: <AuditLogsPage />,
+        element: (
+          <ProtectedRoute requiredPermission={PERMISSIONS.AUDIT_VIEW}>
+            <AuditLogsPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'monitoring',
-        element: <MonitoringPage />,
+        element: (
+          <ProtectedRoute requiredPermission={PERMISSIONS.MONITORING_VIEW}>
+            <MonitoringPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'users',
-        element: <UsersPage />,
+        element: (
+          <ProtectedRoute requiredPermission={PERMISSIONS.USER_VIEW}>
+            <UsersPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'roles',
-        element: <RolesPage />,
+        element: (
+          <ProtectedRoute requiredPermission={PERMISSIONS.ROLE_VIEW}>
+            <RolesPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'settings',
