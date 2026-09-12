@@ -1,27 +1,35 @@
+using System.Security.Claims;
 using System.Text.Json;
 using DBHub.Api.DTOs;
 using DBHub.Api.Models;
 using DBHub.Api.Repositories;
+using DBHub.Api.Security;
 using DBHub.Api.Services;
+using DBHub.Api.Services.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DBHub.Api.Controllers;
 
 [ApiController]
 [Route("api/connections/{connectionId}/databases/{database}/tables/{schema}/{table}/rows")]
+[Authorize]
 public class TableDataController : ControllerBase
 {
     private readonly IDatabaseConnectionStore _connectionStore;
     private readonly ITableDataQueryService _queryService;
+    private readonly IPermissionService _permissionService;
     private readonly ILogger<TableDataController> _logger;
 
     public TableDataController(
         IDatabaseConnectionStore connectionStore,
         ITableDataQueryService queryService,
+        IPermissionService permissionService,
         ILogger<TableDataController> logger)
     {
         _connectionStore = connectionStore;
         _queryService = queryService;
+        _permissionService = permissionService;
         _logger = logger;
     }
 
@@ -39,6 +47,13 @@ public class TableDataController : ControllerBase
         [FromQuery] string? filters = null,
         CancellationToken cancellationToken = default)
     {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        var tableScope = new ResourceScope(connectionId, database, schema, table);
+        if (!await _permissionService.HasPermissionAsync(currentUserId, PermissionDefinitions.DatabaseRead, tableScope, cancellationToken))
+        {
+            return StatusCode(403, new ErrorResponse { Code = "FORBIDDEN", Message = "You do not have permission to view data in this table." });
+        }
+
         var connection = await GetConnectionOrThrowAsync(connectionId, cancellationToken);
 
         List<FilterConditionDto> filterList = new();
@@ -86,6 +101,13 @@ public class TableDataController : ControllerBase
         [FromBody] TableDataQueryRequest request,
         CancellationToken cancellationToken = default)
     {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        var tableScope = new ResourceScope(connectionId, database, schema, table);
+        if (!await _permissionService.HasPermissionAsync(currentUserId, PermissionDefinitions.DatabaseRead, tableScope, cancellationToken))
+        {
+            return StatusCode(403, new ErrorResponse { Code = "FORBIDDEN", Message = "You do not have permission to view data in this table." });
+        }
+
         var connection = await GetConnectionOrThrowAsync(connectionId, cancellationToken);
 
         var result = await _queryService.GetRowsAsync(

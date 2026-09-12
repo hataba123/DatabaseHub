@@ -1,34 +1,48 @@
 using System.Diagnostics;
+using System.Security.Claims;
 using Dapper;
 using DBHub.Api.DTOs;
 using DBHub.Api.Models;
 using DBHub.Api.Repositories;
+using DBHub.Api.Security;
 using DBHub.Api.Services;
+using DBHub.Api.Services.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DBHub.Api.Controllers;
 
 [ApiController]
 [Route("api/database-connections")]
+[Authorize]
 public class DatabaseConnectionsController : ControllerBase
 {
     private readonly IDatabaseConnectionStore _connectionStore;
     private readonly ISqlConnectionFactory _connectionFactory;
+    private readonly IPermissionService _permissionService;
     private readonly ILogger<DatabaseConnectionsController> _logger;
 
     public DatabaseConnectionsController(
         IDatabaseConnectionStore connectionStore,
         ISqlConnectionFactory connectionFactory,
+        IPermissionService permissionService,
         ILogger<DatabaseConnectionsController> logger)
     {
         _connectionStore = connectionStore;
         _connectionFactory = connectionFactory;
+        _permissionService = permissionService;
         _logger = logger;
     }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ConnectionResponse>>> GetAll(CancellationToken cancellationToken)
     {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        if (!await _permissionService.HasPermissionAsync(currentUserId, PermissionDefinitions.ConnectionView, null, cancellationToken))
+        {
+            return StatusCode(403, new ErrorResponse { Code = "FORBIDDEN", Message = "You do not have permission to view database connections." });
+        }
+
         var connections = await _connectionStore.GetAllAsync(cancellationToken);
         var response = connections.Select(c => ToResponse(c)).ToList();
         return Ok(response);
@@ -37,6 +51,11 @@ public class DatabaseConnectionsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<ConnectionResponse>> GetById(string id, CancellationToken cancellationToken)
     {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        if (!await _permissionService.HasPermissionAsync(currentUserId, PermissionDefinitions.ConnectionView, null, cancellationToken))
+        {
+            return StatusCode(403, new ErrorResponse { Code = "FORBIDDEN", Message = "You do not have permission to view database connections." });
+        }
         var conn = await _connectionStore.GetByIdAsync(id, cancellationToken);
         if (conn == null)
         {
@@ -50,6 +69,12 @@ public class DatabaseConnectionsController : ControllerBase
         [FromBody] CreateConnectionRequest request,
         CancellationToken cancellationToken)
     {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        if (!await _permissionService.HasPermissionAsync(currentUserId, PermissionDefinitions.ConnectionManage, null, cancellationToken))
+        {
+            return StatusCode(403, new ErrorResponse { Code = "FORBIDDEN", Message = "You do not have permission to manage database connections." });
+        }
+
         if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Server))
         {
             return BadRequest(new ErrorResponse { Code = "VALIDATION_FAILED", Message = "Connection name and server host are required." });
@@ -82,6 +107,12 @@ public class DatabaseConnectionsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
     {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        if (!await _permissionService.HasPermissionAsync(currentUserId, PermissionDefinitions.ConnectionManage, null, cancellationToken))
+        {
+            return StatusCode(403, new ErrorResponse { Code = "FORBIDDEN", Message = "You do not have permission to manage database connections." });
+        }
+
         var deleted = await _connectionStore.DeleteAsync(id, cancellationToken);
         if (!deleted)
         {
@@ -95,6 +126,12 @@ public class DatabaseConnectionsController : ControllerBase
         string id,
         CancellationToken cancellationToken)
     {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        if (!await _permissionService.HasPermissionAsync(currentUserId, PermissionDefinitions.ConnectionManage, null, cancellationToken))
+        {
+            return StatusCode(403, new TestConnectionResponse { Success = false, Message = "You do not have permission to test database connections." });
+        }
+
         var conn = await _connectionStore.GetByIdAsync(id, cancellationToken);
         if (conn == null)
         {
@@ -146,6 +183,11 @@ public class DatabaseConnectionsController : ControllerBase
         [FromBody] TestConnectionRequest request,
         CancellationToken cancellationToken)
     {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        if (!await _permissionService.HasPermissionAsync(currentUserId, PermissionDefinitions.ConnectionManage, null, cancellationToken))
+        {
+            return StatusCode(403, new TestConnectionResponse { Success = false, Message = "You do not have permission to test database connections." });
+        }
         if (string.IsNullOrWhiteSpace(request.Server))
         {
             return BadRequest(new TestConnectionResponse
