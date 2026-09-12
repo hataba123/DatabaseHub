@@ -1,4 +1,4 @@
-﻿export interface AuthUser {
+export interface AuthUser {
   id: string;
   username: string;
   displayName: string;
@@ -63,4 +63,13 @@ export const PERMISSIONS = {
   ROLE_MANAGE: 'Role.Manage',
   AUDIT_VIEW: 'Audit.View',
   MONITORING_VIEW: 'Monitoring.View',
+  SYNC_VIEW: 'Sync.View',
+  SYNC_CREATE_PLAN: 'Sync.CreatePlan',
+  SYNC_EXECUTE: 'Sync.Execute',
+  SYNC_DELETE: 'Sync.Delete',
+  SYNC_APPROVE: 'Sync.Approve',
+  SYNC_VIEW_HISTORY: 'Sync.ViewHistory',
+  SYNC_CANCEL: 'Sync.Cancel',
+  SYNC_EXECUTE_PRODUCTION: 'Sync.ExecuteProduction',
 } as const;
+

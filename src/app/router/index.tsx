@@ -10,6 +10,7 @@ import { DatabaseDetailPage } from '@/features/databases/DatabaseDetailPage';
 import { TableDataBrowserPage } from '@/features/data-browser/TableDataBrowserPage';
 import { ComparePage } from '@/features/compare/ComparePage';
 import { SyncPage } from '@/features/sync/SyncPage';
+import { SyncHistoryPage } from '@/features/sync/SyncHistoryPage';
 import { AuditLogsPage } from '@/features/audit/AuditLogsPage';
 import { MonitoringPage } from '@/features/monitoring/MonitoringPage';
 import { UsersPage } from '@/features/users/UsersPage';
@@ -73,6 +74,10 @@ export const router = createBrowserRouter([
       {
         path: 'sync',
         element: <SyncPage />,
+      },
+      {
+        path: 'sync/history',
+        element: <SyncHistoryPage />,
       },
       {
         path: 'audit-logs',

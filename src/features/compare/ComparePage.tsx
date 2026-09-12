@@ -21,7 +21,9 @@ import {
   CopyOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/common/PageHeader';
 import { compareService } from '@/services/compareService';
 import { TableCompareResult, RowCompareResult } from '@/types/compare';
@@ -29,6 +31,7 @@ import { TableCompareResult, RowCompareResult } from '@/types/compare';
 const { Text, Title } = Typography;
 
 export const ComparePage: React.FC = () => {
+  const navigate = useNavigate();
   const [sourceDb, setSourceDb] = useState('pmsc');
   const [targetDb, setTargetDb] = useState('pmsc-backup');
   const [loading, setLoading] = useState(false);
@@ -264,6 +267,15 @@ export const ComparePage: React.FC = () => {
                 <Tag color="success">3 Tables Identical</Tag>
               </Space>
             </div>
+          }
+          extra={
+            <Button
+              type="primary"
+              icon={<SyncOutlined />}
+              onClick={() => navigate('/sync')}
+            >
+              Proceed to Sync Engine
+            </Button>
           }
           style={{ borderRadius: 8, border: '1px solid #e2e8f0' }}
           styles={{ body: { padding: 0 } }}
