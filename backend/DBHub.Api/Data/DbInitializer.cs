@@ -17,6 +17,107 @@ public static class DbInitializer
 
         await context.Database.EnsureCreatedAsync();
 
+        // Ensure Phase 6 Compare and Sync tables exist with exact schema
+        await context.Database.ExecuteSqlRawAsync(@"
+DROP TABLE IF EXISTS SyncOperations;
+DROP TABLE IF EXISTS SyncExecutions;
+DROP TABLE IF EXISTS SyncPlans;
+
+CREATE TABLE IF NOT EXISTS CompareSessions (
+    Id TEXT PRIMARY KEY,
+    SourceConnectionId TEXT NOT NULL,
+    SourceDatabase TEXT NOT NULL,
+    TargetConnectionId TEXT NOT NULL,
+    TargetDatabase TEXT NOT NULL,
+    Status TEXT NOT NULL,
+    CreatedAt TEXT NOT NULL,
+    CompletedAt TEXT,
+    CreatedByUserId TEXT,
+    TotalTablesCompared INTEGER NOT NULL,
+    TablesWithDifferences INTEGER NOT NULL,
+    TotalDifferencesCount INTEGER NOT NULL,
+    ResultsJson TEXT
+);
+
+CREATE TABLE IF NOT EXISTS SyncPlans (
+    Id TEXT PRIMARY KEY,
+    CompareSessionId TEXT NOT NULL,
+    CreatedByUserId TEXT NOT NULL,
+    CreatedByUsername TEXT NOT NULL,
+    SourceConnectionId TEXT NOT NULL,
+    SourceDatabase TEXT NOT NULL,
+    TargetConnectionId TEXT NOT NULL,
+    TargetDatabase TEXT NOT NULL,
+    Direction TEXT NOT NULL,
+    Status TEXT NOT NULL,
+    Environment TEXT NOT NULL,
+    CreatedAt TEXT NOT NULL,
+    ValidatedAt TEXT,
+    ApprovedAt TEXT,
+    ExecutedAt TEXT,
+    CompletedAt TEXT,
+    CancelledAt TEXT,
+    TotalOperations INTEGER NOT NULL,
+    InsertCount INTEGER NOT NULL,
+    UpdateCount INTEGER NOT NULL,
+    DeleteCount INTEGER NOT NULL,
+    SkippedCount INTEGER NOT NULL,
+    BlockedCount INTEGER NOT NULL,
+    OptionsJson TEXT,
+    ValidationResultJson TEXT,
+    ApprovalRequired INTEGER NOT NULL,
+    ApprovedByUserId TEXT,
+    ApprovedByUsername TEXT,
+    RejectionReason TEXT,
+    Version INTEGER NOT NULL,
+    DryRunCompletedAt TEXT,
+    DryRunPlanVersion INTEGER,
+    DryRunResultJson TEXT
+);
+
+CREATE TABLE IF NOT EXISTS SyncOperations (
+    Id TEXT PRIMARY KEY,
+    SyncPlanId TEXT NOT NULL,
+    ""Order"" INTEGER NOT NULL,
+    SchemaName TEXT NOT NULL,
+    TableName TEXT NOT NULL,
+    PrimaryKeyJson TEXT NOT NULL,
+    OperationType TEXT NOT NULL,
+    Status TEXT NOT NULL,
+    IsSelected INTEGER NOT NULL,
+    SourceValuesJson TEXT,
+    TargetValuesJson TEXT,
+    ChangedColumnsJson TEXT,
+    ExpectedTargetVersion TEXT,
+    ErrorCode TEXT,
+    ErrorMessage TEXT,
+    ExecutedAt TEXT,
+    DurationMs INTEGER,
+    FOREIGN KEY (SyncPlanId) REFERENCES SyncPlans (Id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS SyncExecutions (
+    Id TEXT PRIMARY KEY,
+    SyncPlanId TEXT NOT NULL,
+    StartedByUserId TEXT NOT NULL,
+    StartedByUsername TEXT NOT NULL,
+    StartedAt TEXT NOT NULL,
+    CompletedAt TEXT,
+    Status TEXT NOT NULL,
+    CurrentTable TEXT,
+    CurrentOperation TEXT,
+    TotalOperations INTEGER NOT NULL,
+    CompletedOperations INTEGER NOT NULL,
+    FailedOperations INTEGER NOT NULL,
+    SkippedOperations INTEGER NOT NULL,
+    ConflictOperations INTEGER NOT NULL,
+    ProgressPercent INTEGER NOT NULL,
+    ErrorMessage TEXT,
+    ResultSummaryJson TEXT,
+    FOREIGN KEY (SyncPlanId) REFERENCES SyncPlans (Id) ON DELETE CASCADE
+);
+");
+
         // 1. Seed Roles
         var superAdminRole = await context.Roles.FirstOrDefaultAsync(r => r.Name == "Super Admin");
         if (superAdminRole == null)

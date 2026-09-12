@@ -637,11 +637,12 @@ public class SyncPlanService : ISyncPlanService
     {
         var execution = await _dbContext.SyncExecutions
             .Include(e => e.SyncPlan)
-            .FirstOrDefaultAsync(e => e.Id == executionId, cancellationToken);
+            .OrderByDescending(e => e.StartedAt)
+            .FirstOrDefaultAsync(e => e.Id == executionId || e.SyncPlanId == executionId, cancellationToken);
 
         if (execution == null)
         {
-            throw new KeyNotFoundException($"SyncExecution '{executionId}' was not found.");
+            throw new KeyNotFoundException($"SyncExecution for identifier '{executionId}' was not found.");
         }
 
         var originalPlan = execution.SyncPlan ?? await _dbContext.SyncPlans.Include(p => p.Operations).FirstOrDefaultAsync(p => p.Id == execution.SyncPlanId, cancellationToken);

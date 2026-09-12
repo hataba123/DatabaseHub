@@ -184,4 +184,19 @@ public class SyncPlansController : ControllerBase
         var rejected = await _planService.RejectPlanAsync(id, request, currentUserId, currentUsername, cancellationToken);
         return Ok(rejected);
     }
+
+    [HttpPost("{id}/reversal-plan")]
+    public async Task<ActionResult<ReversalPlanResponse>> CreateReversalPlan(string id, CancellationToken cancellationToken = default)
+    {
+        var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        var currentUsername = User.FindFirst(ClaimTypes.Name)?.Value ?? currentUserId;
+
+        if (!await _permissionService.HasPermissionAsync(currentUserId, PermissionDefinitions.SyncCreatePlan, null, cancellationToken))
+        {
+            return StatusCode(403, new ErrorResponse { Code = "FORBIDDEN", Message = "You do not have permission to create reversal plans." });
+        }
+
+        var res = await _planService.CreateReversalPlanAsync(id, currentUserId, currentUsername, cancellationToken);
+        return StatusCode(201, res);
+    }
 }
