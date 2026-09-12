@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="DBHub.Api/DBHub.Api.csproj" />
+  <Project Path="DBHub.Tests/DBHub.Tests.csproj" />
+</Solution>
