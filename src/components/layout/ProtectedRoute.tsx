@@ -2,7 +2,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore, ResourceScopeCheck } from '@/stores/useAuthStore';
 import { AccessDeniedPage } from '@/components/common/AccessDeniedPage';
-import { Loader2 } from 'lucide-react';
+import { Spin } from 'antd';
 
 interface ProtectedRouteProps {
   requiredPermission?: string;
@@ -26,11 +26,23 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   if (!isInitialized || isLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-slate-950 text-slate-400">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-          <p className="text-xs font-mono text-slate-500">Authenticating DBHub Enterprise Session...</p>
-        </div>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          width: '100vw',
+          backgroundColor: '#0f172a',
+          color: '#94a3b8',
+          gap: 16,
+        }}
+      >
+        <Spin size="large" />
+        <span style={{ fontSize: 13, fontFamily: 'monospace', color: '#64748b' }}>
+          Authenticating DBHub Enterprise Session...
+        </span>
       </div>
     );
   }
