@@ -12,6 +12,7 @@ import { mockNhanVienList, NhanVienRecord } from '@/mocks/nhanvien.mock';
 import { applyFilters } from '@/utils/filterEvaluator';
 import { databaseService } from './databaseService';
 import { databaseApi } from './api/databaseApi';
+import { crudApi } from './api/crudApi';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -170,14 +171,43 @@ class TableService {
     };
   }
 
+  async getTableCapabilities(
+    databaseId: string,
+    tableName: string
+  ) {
+    if (this.isApiMode) {
+      try {
+        const conn = await databaseService.getDatabase(databaseId);
+        if (conn && conn.databaseName) {
+          const { schema, table } = parseSchemaAndTable(tableName);
+          return await crudApi.getTableCapabilities(conn.id, conn.databaseName, schema, table);
+        }
+      } catch (err) {
+        console.warn('API getTableCapabilities failed:', err);
+      }
+    }
+    return {
+      canInsert: true,
+      canUpdate: true,
+      canDelete: true,
+      isWritable: true,
+      primaryKeys: ['MaNhanVien'],
+      hasRowVersion: false,
+    };
+  }
+
   async createRow(
     databaseId: string,
     tableName: string,
-    row: Partial<NhanVienRecord>
-  ): Promise<NhanVienRecord> {
-    const conn = await databaseService.getDatabase(databaseId);
-    if (conn && conn.id !== 'pmsc') {
-      throw new Error('Chế độ chỉ đọc (Phase 2: Read-Only). Thao tác ghi sẽ được hỗ trợ ở Phase 3.');
+    row: Record<string, any>
+  ): Promise<any> {
+    if (this.isApiMode) {
+      const conn = await databaseService.getDatabase(databaseId);
+      if (conn && conn.databaseName) {
+        const { schema, table } = parseSchemaAndTable(tableName);
+        const res = await crudApi.createRow(conn.id, conn.databaseName, schema, table, row);
+        return res.data ?? row;
+      }
     }
 
     await delay(200);
@@ -202,16 +232,26 @@ class TableService {
   async updateRow(
     databaseId: string,
     tableName: string,
-    key: string,
-    row: Partial<NhanVienRecord>
-  ): Promise<NhanVienRecord> {
-    const conn = await databaseService.getDatabase(databaseId);
-    if (conn && conn.id !== 'pmsc') {
-      throw new Error('Chế độ chỉ đọc (Phase 2: Read-Only). Thao tác ghi sẽ được hỗ trợ ở Phase 3.');
+    keys: string | Record<string, any>,
+    row: Record<string, any>,
+    rowVersion?: string
+  ): Promise<any> {
+    const keyDict = typeof keys === 'string'
+      ? { MaNhanVien: keys }
+      : keys;
+
+    if (this.isApiMode) {
+      const conn = await databaseService.getDatabase(databaseId);
+      if (conn && conn.databaseName) {
+        const { schema, table } = parseSchemaAndTable(tableName);
+        const res = await crudApi.updateRow(conn.id, conn.databaseName, schema, table, keyDict, row, rowVersion);
+        return res.data ?? row;
+      }
     }
 
     await delay(200);
-    const idx = this.nhanvienData.findIndex((r) => r.MaNhanVien === key);
+    const keyVal = typeof keys === 'string' ? keys : Object.values(keys)[0];
+    const idx = this.nhanvienData.findIndex((r) => r.MaNhanVien === keyVal);
     if (idx >= 0) {
       this.nhanvienData[idx] = {
         ...this.nhanvienData[idx],
@@ -219,22 +259,52 @@ class TableService {
       };
       return this.nhanvienData[idx];
     }
-    throw new Error(`Record with key ${key} not found.`);
+    throw new Error(`Record with key ${keyVal} not found.`);
   }
 
   async deleteRow(
     databaseId: string,
     tableName: string,
-    key: string
+    keys: string | Record<string, any>,
+    rowVersion?: string
   ): Promise<boolean> {
-    const conn = await databaseService.getDatabase(databaseId);
-    if (conn && conn.id !== 'pmsc') {
-      throw new Error('Chế độ chỉ đọc (Phase 2: Read-Only). Thao tác ghi sẽ được hỗ trợ ở Phase 3.');
+    const keyDict = typeof keys === 'string'
+      ? { MaNhanVien: keys }
+      : keys;
+
+    if (this.isApiMode) {
+      const conn = await databaseService.getDatabase(databaseId);
+      if (conn && conn.databaseName) {
+        const { schema, table } = parseSchemaAndTable(tableName);
+        await crudApi.deleteRow(conn.id, conn.databaseName, schema, table, keyDict, rowVersion);
+        return true;
+      }
     }
 
     await delay(200);
-    this.nhanvienData = this.nhanvienData.filter((r) => r.MaNhanVien !== key);
+    const keyVal = typeof keys === 'string' ? keys : Object.values(keys)[0];
+    this.nhanvienData = this.nhanvienData.filter((r) => r.MaNhanVien !== keyVal);
     return true;
+  }
+
+  async bulkDeleteRows(
+    databaseId: string,
+    tableName: string,
+    rows: Array<{ keys: Record<string, any>; rowVersion?: string }>
+  ): Promise<{ totalRequested: number; deletedCount: number }> {
+    if (this.isApiMode) {
+      const conn = await databaseService.getDatabase(databaseId);
+      if (conn && conn.databaseName) {
+        const { schema, table } = parseSchemaAndTable(tableName);
+        const res = await crudApi.bulkDeleteRows(conn.id, conn.databaseName, schema, table, rows);
+        return { totalRequested: res.totalRequested, deletedCount: res.deletedCount };
+      }
+    }
+
+    await delay(200);
+    const keysToDelete = new Set(rows.map((r) => Object.values(r.keys)[0]));
+    this.nhanvienData = this.nhanvienData.filter((r) => !keysToDelete.has(r.MaNhanVien));
+    return { totalRequested: rows.length, deletedCount: rows.length };
   }
 }
 

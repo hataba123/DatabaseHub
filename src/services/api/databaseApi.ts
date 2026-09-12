@@ -36,9 +36,16 @@ export interface BackendColumnItem {
   name: string;
   dataType: string;
   maxLength?: number;
+  precision?: number;
+  scale?: number;
   nullable: boolean;
   isPrimaryKey: boolean;
   isIdentity: boolean;
+  isComputed: boolean;
+  isRowVersion: boolean;
+  hasDefault: boolean;
+  defaultValue?: string | null;
+  isWritable: boolean;
 }
 
 export interface BackendIndexItem {
@@ -137,6 +144,15 @@ export const databaseApi = {
       dataType: c.dataType + (c.maxLength && c.maxLength > 0 ? `(${c.maxLength})` : ''),
       nullable: c.nullable,
       isPrimaryKey: c.isPrimaryKey,
+      isIdentity: c.isIdentity,
+      isComputed: c.isComputed,
+      isRowVersion: c.isRowVersion,
+      isWritable: c.isWritable,
+      hasDefault: c.hasDefault,
+      defaultValue: c.defaultValue,
+      maxLength: c.maxLength,
+      precision: c.precision,
+      scale: c.scale,
     }));
 
     const mappedIndexes: DatabaseIndex[] = idxs.map((i) => ({

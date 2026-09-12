@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Drawer,
   Tabs,
@@ -8,7 +8,9 @@ import {
   Tag,
   Modal,
   Typography,
-  message,
+  Spin,
+  Empty,
+  Collapse,
 } from 'antd';
 import {
   EditOutlined,
@@ -17,9 +19,12 @@ import {
   HistoryOutlined,
   CodeOutlined,
   ExclamationCircleOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 import { JsonViewer } from '@/components/common/JsonViewer';
-import { StatusBadge } from '@/components/common/StatusBadge';
+import { DatabaseColumn, RowAuditHistoryItem } from '@/types/table';
+import { crudApi } from '@/services/api/crudApi';
 
 const { Text } = Typography;
 
@@ -27,51 +32,98 @@ interface RowDetailsDrawerProps {
   open: boolean;
   onClose: () => void;
   record: Record<string, any> | null;
+  columns?: DatabaseColumn[];
+  primaryKeys?: string[];
+  tableName?: string;
+  databaseId?: string;
+  canEdit?: boolean;
+  canDelete?: boolean;
   onEdit: (record: Record<string, any>) => void;
-  onDelete: (recordKey: string) => void;
+  onDelete: (record: Record<string, any>) => void;
 }
 
 export const RowDetailsDrawer: React.FC<RowDetailsDrawerProps> = ({
   open,
   onClose,
   record,
+  columns = [],
+  primaryKeys = [],
+  tableName = 'Table',
+  databaseId = 'pmsc',
+  canEdit = true,
+  canDelete = true,
   onEdit,
   onDelete,
 }) => {
-  if (!record) return null;
+  const [history, setHistory] = useState<RowAuditHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const primaryKey = record.MaNhanVien || record.Id || 'Record';
+  const effectivePkCols = primaryKeys.length > 0
+    ? primaryKeys
+    : columns.filter((c) => c.isPrimaryKey).map((c) => c.name);
+
+  const primaryKeyValue = record
+    ? effectivePkCols.map((pk) => `${record[pk]}`).join(';') || record.id || record.MaNhanVien || 'Record'
+    : 'Record';
+
+  // Fetch real audit history when drawer opens
+  useEffect(() => {
+    if (open && record && databaseId) {
+      setLoadingHistory(true);
+      const targetId = effectivePkCols.length > 0
+        ? effectivePkCols.map((pk) => `${pk}=${record[pk]}`).join(';')
+        : undefined;
+
+      crudApi
+        .getRowAuditHistory(databaseId, databaseId, 'dbo', tableName, targetId)
+        .then((items) => {
+          setHistory(items);
+        })
+        .catch(() => {
+          setHistory([]);
+        })
+        .finally(() => {
+          setLoadingHistory(false);
+        });
+    }
+  }, [open, record, databaseId, tableName, effectivePkCols]);
+
+  if (!record) return null;
 
   const confirmDelete = () => {
     Modal.confirm({
-      title: 'Delete this record?',
+      title: 'Xác nhận xóa bản ghi?',
       icon: <ExclamationCircleOutlined style={{ color: '#ef4444' }} />,
       content: (
         <div>
           <p>
-            You are about to delete record <Text strong>{primaryKey}</Text> from table{' '}
-            <Text code>dbo.NhanVienDaiThanh</Text>.
+            Bạn chuẩn bị xóa bản ghi <Text strong>{primaryKeyValue}</Text> khỏi bảng{' '}
+            <Text code>dbo.{tableName}</Text>.
           </p>
-          <Text type="danger">This action cannot be undone and will be recorded in audit logs.</Text>
+          <Text type="danger">Thao tác này không thể hoàn tác và sẽ được ghi vào nhật ký kiểm toán hệ thống.</Text>
         </div>
       ),
-      okText: 'Delete Record',
+      okText: 'Xóa bản ghi',
       okType: 'danger',
-      cancelText: 'Cancel',
+      cancelText: 'Hủy bỏ',
       onOk: () => {
-        onDelete(primaryKey);
+        onDelete(record);
         onClose();
-        message.success(`Record ${primaryKey} deleted successfully`);
       },
     });
   };
+
+  // Render detail fields
+  const displayColumns = columns.length > 0
+    ? columns
+    : Object.keys(record).map((k) => ({ name: k, dataType: typeof record[k], nullable: true, isPrimaryKey: false }));
 
   const tabItems = [
     {
       key: 'details',
       label: (
         <span>
-          <FileTextOutlined /> Details
+          <FileTextOutlined /> Chi tiết
         </span>
       ),
       children: (
@@ -79,33 +131,30 @@ export const RowDetailsDrawer: React.FC<RowDetailsDrawerProps> = ({
           bordered
           column={1}
           size="small"
-          styles={{ label: { width: 140, fontWeight: 500, backgroundColor: '#f8fafc' } }}
+          styles={{ label: { width: 160, fontWeight: 500, backgroundColor: '#f8fafc' } }}
         >
-          <Descriptions.Item label="MaNhanVien">
-            <Text strong copyable className="font-mono" style={{ color: '#1677ff' }}>
-              {record.MaNhanVien}
-            </Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="Name">{record.Name}</Descriptions.Item>
-          <Descriptions.Item label="Xuong">
-            <Tag color="blue">Xưởng {record.Xuong}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="DeptName0">{record.DeptName0}</Descriptions.Item>
-          <Descriptions.Item label="Status">
-            <StatusBadge status={record.Status} />
-          </Descriptions.Item>
-          <Descriptions.Item label="IsDisplay">
-            <Tag color={record.IsDisplay ? 'success' : 'default'}>
-              {record.IsDisplay ? 'Yes (True)' : 'No (False)'}
-            </Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="BirthDate">{record.BirthDate || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Tel">
-            <Text copyable>{record.Tel || '-'}</Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="Address">{record.Address || '-'}</Descriptions.Item>
-          <Descriptions.Item label="SalaryGrade">{record.SalaryGrade || 'A1'}</Descriptions.Item>
-          <Descriptions.Item label="JoinedDate">{record.JoinedDate || '-'}</Descriptions.Item>
+          {displayColumns.map((col) => {
+            const val = record[col.name];
+            const isPk = effectivePkCols.includes(col.name);
+
+            return (
+              <Descriptions.Item
+                key={col.name}
+                label={
+                  <Space size={4}>
+                    <span>{col.name}</span>
+                    {isPk && (
+                      <Tag color="gold" style={{ fontSize: 10, lineHeight: '14px', margin: 0 }}>
+                        PK
+                      </Tag>
+                    )}
+                  </Space>
+                }
+              >
+                {renderValue(val, col)}
+              </Descriptions.Item>
+            );
+          })}
         </Descriptions>
       ),
     },
@@ -113,43 +162,59 @@ export const RowDetailsDrawer: React.FC<RowDetailsDrawerProps> = ({
       key: 'history',
       label: (
         <span>
-          <HistoryOutlined /> Change History
+          <HistoryOutlined /> Lịch sử thay đổi ({history.length})
         </span>
       ),
       children: (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div
-            style={{
-              padding: 12,
-              background: '#f8fafc',
-              borderRadius: 6,
-              border: '1px solid #e2e8f0',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Tag color="blue">UPDATE</Tag>
-              <span style={{ fontSize: 12, color: '#94a3b8' }}>2024-05-21 14:30:15</span>
+        <div>
+          {loadingHistory ? (
+            <div style={{ padding: 40, textAlign: 'center' }}>
+              <Spin tip="Đang tải lịch sử kiểm toán..." />
             </div>
-            <div style={{ fontSize: 12, color: '#334155' }}>
-              User <Text strong>loi</Text> updated field <Text code>Name</Text> via DBHub Web UI.
+          ) : history.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {history.map((h) => (
+                <div
+                  key={h.id}
+                  style={{
+                    padding: 12,
+                    background: '#f8fafc',
+                    borderRadius: 6,
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Space size={6}>
+                      <Tag color={getActionColor(h.action)}>{h.action}</Tag>
+                      <Text strong>{h.username}</Text>
+                    </Space>
+                    <Space size={4} style={{ fontSize: 12, color: '#94a3b8' }}>
+                      <ClockCircleOutlined />
+                      <span>{new Date(h.timestamp).toLocaleString('vi-VN')}</span>
+                    </Space>
+                  </div>
+                  {h.diff && (
+                    <Collapse
+                      size="small"
+                      ghost
+                      items={[
+                        {
+                          key: 'diff',
+                          label: <Text type="secondary" style={{ fontSize: 12 }}>Xem chi tiết Before / After</Text>,
+                          children: <JsonViewer data={h.diff} maxHeight={200} />,
+                        },
+                      ]}
+                    />
+                  )}
+                </div>
+              ))}
             </div>
-          </div>
-          <div
-            style={{
-              padding: 12,
-              background: '#f8fafc',
-              borderRadius: 6,
-              border: '1px solid #e2e8f0',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Tag color="green">INSERT</Tag>
-              <span style={{ fontSize: 12, color: '#94a3b8' }}>2023-10-15 08:20:00</span>
-            </div>
-            <div style={{ fontSize: 12, color: '#334155' }}>
-              Record initialized by HR Data Import batch job.
-            </div>
-          </div>
+          ) : (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="Chưa có nhật ký thay đổi nào được ghi nhận cho bản ghi này."
+            />
+          )}
         </div>
       ),
     },
@@ -157,7 +222,7 @@ export const RowDetailsDrawer: React.FC<RowDetailsDrawerProps> = ({
       key: 'raw',
       label: (
         <span>
-          <CodeOutlined /> Raw Data (JSON)
+          <CodeOutlined /> Dữ liệu JSON gốc
         </span>
       ),
       children: <JsonViewer data={record} maxHeight={420} />,
@@ -167,27 +232,29 @@ export const RowDetailsDrawer: React.FC<RowDetailsDrawerProps> = ({
   return (
     <Drawer
       title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Space size={8}>
           <Text strong style={{ fontSize: 15 }}>
-            Record Details: {primaryKey}
+            Bản ghi:
           </Text>
-        </div>
+          <Tag color="blue">{primaryKeyValue}</Tag>
+        </Space>
       }
-      width={540}
+      width={560}
       open={open}
       onClose={onClose}
       extra={
         <Space>
           <Button
             icon={<EditOutlined />}
+            disabled={!canEdit}
             onClick={() => {
               onEdit(record);
             }}
           >
-            Edit
+            Chỉnh sửa
           </Button>
-          <Button danger icon={<DeleteOutlined />} onClick={confirmDelete}>
-            Delete
+          <Button danger icon={<DeleteOutlined />} disabled={!canDelete} onClick={confirmDelete}>
+            Xóa
           </Button>
         </Space>
       }
@@ -196,3 +263,48 @@ export const RowDetailsDrawer: React.FC<RowDetailsDrawerProps> = ({
     </Drawer>
   );
 };
+
+function renderValue(val: any, col: DatabaseColumn) {
+  if (val === null || val === undefined) {
+    return <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>NULL</span>;
+  }
+
+  if (typeof val === 'boolean' || col.dataType.toLowerCase() === 'bit') {
+    return (
+      <Tag color={val ? 'green' : 'default'} style={{ margin: 0 }}>
+        {val ? 'True (Có)' : 'False (Không)'}
+      </Tag>
+    );
+  }
+
+  if (col.isPrimaryKey) {
+    return (
+      <Text strong copyable className="font-mono" style={{ color: '#1677ff' }}>
+        {String(val)}
+      </Text>
+    );
+  }
+
+  if (typeof val === 'object') {
+    return <span className="font-mono text-xs">{JSON.stringify(val)}</span>;
+  }
+
+  return <span>{String(val)}</span>;
+}
+
+function getActionColor(action: string) {
+  switch (action.toUpperCase()) {
+    case 'ROW_INSERT':
+    case 'INSERT':
+      return 'green';
+    case 'ROW_UPDATE':
+    case 'UPDATE':
+      return 'blue';
+    case 'ROW_DELETE':
+    case 'DELETE':
+    case 'ROW_BULK_DELETE':
+      return 'red';
+    default:
+      return 'purple';
+  }
+}

@@ -17,6 +17,14 @@ export interface DatabaseColumn {
   dataType: SqlDataType | string;
   nullable: boolean;
   isPrimaryKey: boolean;
+  isIdentity?: boolean;
+  isComputed?: boolean;
+  isRowVersion?: boolean;
+  isWritable?: boolean;
+  hasDefault?: boolean;
+  maxLength?: number;
+  precision?: number;
+  scale?: number;
   isForeignKey?: boolean;
   references?: {
     table: string;
@@ -24,6 +32,26 @@ export interface DatabaseColumn {
   };
   defaultValue?: string | null;
   description?: string;
+}
+
+export interface TableCapabilities {
+  canInsert: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
+  isWritable: boolean;
+  primaryKeys: string[];
+  hasRowVersion: boolean;
+  rowVersionColumn?: string | null;
+  reason?: string | null;
+}
+
+export interface RowAuditHistoryItem {
+  id: number;
+  username: string;
+  action: string;
+  timestamp: string;
+  success: boolean;
+  diff?: any;
 }
 
 export interface DatabaseIndex {

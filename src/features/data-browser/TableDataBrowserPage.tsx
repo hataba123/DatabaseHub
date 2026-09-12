@@ -28,6 +28,7 @@ import {
   TableOutlined,
   InfoCircleOutlined,
   LayoutOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable, TableDensity } from '@/components/data-table/DataTable';
@@ -39,8 +40,8 @@ import { RowDetailsDrawer } from './RowDetailsDrawer';
 import { DynamicRowModal } from './DynamicRowModal';
 import { TableSchemaView } from './TableSchemaView';
 import { tableService } from '@/services/tableService';
-import { databaseService } from '@/services/databaseService';
-import { FilterCondition, TableSchema, DatabaseObjectItem } from '@/types/table';
+import { databaseService } from './../../services/databaseService';
+import { FilterCondition, TableSchema, DatabaseObjectItem, TableCapabilities } from '@/types/table';
 import { DatabaseConnection } from '@/types/database';
 import { useTranslation } from '@/locales';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -57,9 +58,11 @@ export const TableDataBrowserPage: React.FC = () => {
   const { t, language } = useTranslation();
   const { hasPermission } = useAuthStore();
 
-  const canInsert = hasPermission(PERMISSIONS.DATABASE_INSERT, { connectionId: databaseId, table: tableName });
-  const canUpdate = hasPermission(PERMISSIONS.DATABASE_UPDATE, { connectionId: databaseId, table: tableName });
-  const canDelete = hasPermission(PERMISSIONS.DATABASE_DELETE, { connectionId: databaseId, table: tableName });
+  const [capabilities, setCapabilities] = useState<TableCapabilities | null>(null);
+
+  const canInsert = (capabilities?.canInsert ?? true) && hasPermission(PERMISSIONS.DATABASE_INSERT, { connectionId: databaseId, table: tableName });
+  const canUpdate = (capabilities?.canUpdate ?? true) && hasPermission(PERMISSIONS.DATABASE_UPDATE, { connectionId: databaseId, table: tableName });
+  const canDelete = (capabilities?.canDelete ?? true) && hasPermission(PERMISSIONS.DATABASE_DELETE, { connectionId: databaseId, table: tableName });
   const canExport = hasPermission(PERMISSIONS.DATABASE_EXPORT, { connectionId: databaseId, table: tableName });
 
   // State
@@ -108,18 +111,35 @@ export const TableDataBrowserPage: React.FC = () => {
   ];
   const [columnConfig, setColumnConfig] = useState<ColumnItem[]>(defaultColumns);
 
-  const primaryKeyCol = useMemo(() => {
-    return (
-      schema?.columns?.find((c) => c.isPrimaryKey)?.name ||
-      schema?.columns?.[0]?.name ||
-      'MaNhanVien'
-    );
-  }, [schema]);
+  const primaryKeyCols = useMemo(() => {
+    if (capabilities?.primaryKeys && capabilities.primaryKeys.length > 0) {
+      return capabilities.primaryKeys;
+    }
+    const schemaPks = schema?.columns?.filter((c) => c.isPrimaryKey).map((c) => c.name);
+    if (schemaPks && schemaPks.length > 0) return schemaPks;
+    return ['MaNhanVien'];
+  }, [capabilities, schema]);
+
+  const primaryKeyCol = primaryKeyCols[0] || 'MaNhanVien';
+
+  const extractKeys = (rec: any) => {
+    const keys: Record<string, any> = {};
+    primaryKeyCols.forEach((pk) => {
+      if (rec && rec[pk] !== undefined) {
+        keys[pk] = rec[pk];
+      }
+    });
+    if (Object.keys(keys).length === 0 && rec) {
+      keys[primaryKeyCol] = rec[primaryKeyCol] ?? rec.id ?? rec.MaNhanVien;
+    }
+    return keys;
+  };
 
   // Fetch database info & explorer objects
   useEffect(() => {
     databaseService.getDatabase(databaseId).then(setDatabase);
     tableService.getDatabaseObjects(databaseId).then(setDbObjects);
+    tableService.getTableCapabilities(databaseId, tableName).then(setCapabilities);
     tableService.getTableSchema(databaseId, tableName).then((s) => {
       setSchema(s);
       if (tableName === 'NhanVienDaiThanh') {
@@ -204,11 +224,11 @@ export const TableDataBrowserPage: React.FC = () => {
   };
 
   const handleOpenEdit = (record: any) => {
-    if (databaseId !== 'pmsc') {
-      message.info(
+    if (!canUpdate) {
+      message.warning(
         language === 'vi'
-          ? 'Phase 2 đang ở chế độ Chỉ đọc (Read-Only). Thao tác cập nhật bản ghi sẽ được hỗ trợ ở Phase 3.'
-          : 'Phase 2 is in Read-Only mode. Updating records will be supported in Phase 3.'
+          ? 'Bạn không có quyền chỉnh sửa dữ liệu trong bảng này.'
+          : 'You do not have permission to update data in this table.'
       );
       return;
     }
@@ -217,11 +237,11 @@ export const TableDataBrowserPage: React.FC = () => {
   };
 
   const handleOpenCreate = () => {
-    if (databaseId !== 'pmsc') {
-      message.info(
+    if (!canInsert) {
+      message.warning(
         language === 'vi'
-          ? 'Phase 2 đang ở chế độ Chỉ đọc (Read-Only). Thao tác thêm mới bản ghi sẽ được hỗ trợ ở Phase 3.'
-          : 'Phase 2 is in Read-Only mode. Adding records will be supported in Phase 3.'
+          ? 'Bạn không có quyền thêm dữ liệu vào bảng này.'
+          : 'You do not have permission to insert data into this table.'
       );
       return;
     }
@@ -229,29 +249,93 @@ export const TableDataBrowserPage: React.FC = () => {
     setEditModalOpen(true);
   };
 
-  const handleSaveRecord = async (values: any) => {
-    if (recordToEdit) {
-      await tableService.updateRow(databaseId, tableName, recordToEdit.MaNhanVien, values);
+  const handleSaveRecord = async (values: any, isEdit: boolean, origRecord: any) => {
+    if (isEdit && origRecord) {
+      const keys = extractKeys(origRecord);
+      await tableService.updateRow(databaseId, tableName, keys, values, origRecord.RowVersion || origRecord.rv);
+      if (selectedRecord) {
+        setSelectedRecord({ ...selectedRecord, ...values });
+      }
     } else {
       await tableService.createRow(databaseId, tableName, values);
     }
     fetchData();
-    if (selectedRecord && selectedRecord.MaNhanVien === values.MaNhanVien) {
-      setSelectedRecord(values);
-    }
   };
 
-  const handleDeleteRecord = async (key: string) => {
-    if (databaseId !== 'pmsc') {
-      message.info(
+  const handleDeleteRecord = async (record: any) => {
+    if (!canDelete) {
+      message.warning(
         language === 'vi'
-          ? 'Phase 2 đang ở chế độ Chỉ đọc (Read-Only). Thao tác xóa bản ghi sẽ được hỗ trợ ở Phase 3.'
-          : 'Phase 2 is in Read-Only mode. Deleting records will be supported in Phase 3.'
+          ? 'Bạn không có quyền xóa dữ liệu trong bảng này.'
+          : 'You do not have permission to delete data in this table.'
       );
       return;
     }
-    await tableService.deleteRow(databaseId, tableName, key);
-    fetchData();
+    try {
+      const keys = extractKeys(record);
+      await tableService.deleteRow(databaseId, tableName, keys, record.RowVersion || record.rv);
+      message.success(language === 'vi' ? 'Bản ghi đã được xóa thành công.' : 'Record deleted successfully.');
+      if (selectedRecord) {
+        setSelectedRecord(null);
+        setDetailDrawerOpen(false);
+      }
+      fetchData();
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || err?.message || 'Không thể xóa bản ghi.');
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedRowKeys.length === 0) return;
+    if (!canDelete) {
+      message.warning(
+        language === 'vi'
+          ? 'Bạn không có quyền xóa dữ liệu trong bảng này.'
+          : 'You do not have permission to delete data in this table.'
+      );
+      return;
+    }
+
+    Modal.confirm({
+      title: language === 'vi' ? `Xác nhận xóa ${selectedRowKeys.length} bản ghi đã chọn?` : `Confirm delete ${selectedRowKeys.length} selected records?`,
+      icon: <ExclamationCircleOutlined style={{ color: '#ef4444' }} />,
+      content: (
+        <div>
+          <p>
+            {language === 'vi'
+              ? `Bạn chuẩn bị xóa ${selectedRowKeys.length} bản ghi khỏi bảng dbo.${tableName}.`
+              : `You are about to delete ${selectedRowKeys.length} records from dbo.${tableName}.`}
+          </p>
+          <Text type="danger">
+            {language === 'vi'
+              ? 'Thao tác này thực thi bên trong giao dịch nguyên tử (transaction) và ghi nhận nhật ký kiểm toán hệ thống.'
+              : 'This action executes inside an atomic transaction and is logged in system audit trail.'}
+          </Text>
+        </div>
+      ),
+      okText: language === 'vi' ? `Xóa ${selectedRowKeys.length} bản ghi` : `Delete ${selectedRowKeys.length} records`,
+      okType: 'danger',
+      cancelText: language === 'vi' ? 'Hủy bỏ' : 'Cancel',
+      onOk: async () => {
+        try {
+          const rowsToDelete = selectedRowKeys.map((k) => {
+            const rec = data.find((d) => String(d[primaryKeyCol] ?? d.id ?? d.MaNhanVien) === String(k));
+            const keys = rec ? extractKeys(rec) : { [primaryKeyCol]: k };
+            return { keys, rowVersion: rec?.RowVersion || rec?.rv };
+          });
+          const res = await tableService.bulkDeleteRows(databaseId, tableName, rowsToDelete);
+          message.success(
+            language === 'vi'
+              ? `Đã xóa thành công ${res.deletedCount} bản ghi.`
+              : `Successfully deleted ${res.deletedCount} records.`
+          );
+          setSelectedRowKeys([]);
+          fetchData();
+        } catch (err: any) {
+          message.error(err?.response?.data?.message || err?.message || 'Xóa hàng loạt thất bại.');
+        }
+      },
+    });
   };
 
   // Build columns for DataTable
@@ -419,9 +503,21 @@ export const TableDataBrowserPage: React.FC = () => {
             onClick: () => {
               Modal.confirm({
                 title: t.table.deleteConfirmTitle,
-                content: language === 'vi' ? `Bạn có chắc chắn muốn xóa bản ghi ${rowId}?` : `Are you sure you want to delete ${rowId}?`,
+                icon: <ExclamationCircleOutlined style={{ color: '#ef4444' }} />,
+                content: (
+                  <div>
+                    <p>
+                      {language === 'vi'
+                        ? `Bạn có chắc chắn muốn xóa bản ghi ${rowId} khỏi bảng dbo.${tableName}?`
+                        : `Are you sure you want to delete ${rowId} from dbo.${tableName}?`}
+                    </p>
+                    <Text type="danger">{t.table.deleteConfirmWarning}</Text>
+                  </div>
+                ),
                 okType: 'danger',
-                onOk: () => handleDeleteRecord(rowId),
+                okText: language === 'vi' ? 'Xóa bản ghi' : 'Delete Record',
+                cancelText: language === 'vi' ? 'Hủy bỏ' : 'Cancel',
+                onOk: () => handleDeleteRecord(record),
               });
             },
           },
@@ -605,17 +701,38 @@ export const TableDataBrowserPage: React.FC = () => {
                   gap: 12,
                 }}
               >
-                <Input
-                  prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
-                  placeholder={t.table.searchTable}
-                  allowClear
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                  style={{ maxWidth: 380, borderRadius: 6 }}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <Input
+                    prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
+                    placeholder={t.table.searchTable}
+                    allowClear
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
+                    style={{ maxWidth: 360, borderRadius: 6 }}
+                  />
+
+                  {selectedRowKeys.length > 0 && (
+                    <Space size={8}>
+                      <Tag color="geekblue" style={{ fontSize: 13, padding: '2px 8px', margin: 0 }}>
+                        {language === 'vi' ? `Đã chọn: ${selectedRowKeys.length}` : `Selected: ${selectedRowKeys.length}`}
+                      </Tag>
+                      <Button
+                        danger
+                        icon={<DeleteOutlined />}
+                        disabled={!canDelete}
+                        onClick={handleBulkDelete}
+                      >
+                        {language === 'vi' ? `Xóa ${selectedRowKeys.length} dòng` : `Delete ${selectedRowKeys.length} rows`}
+                      </Button>
+                      <Button type="link" size="small" onClick={() => setSelectedRowKeys([])}>
+                        {language === 'vi' ? 'Bỏ chọn' : 'Deselect'}
+                      </Button>
+                    </Space>
+                  )}
+                </div>
 
                 {/* Active filter tags */}
                 {filters.length > 0 && (
@@ -700,17 +817,29 @@ export const TableDataBrowserPage: React.FC = () => {
         open={detailDrawerOpen}
         onClose={() => setDetailDrawerOpen(false)}
         record={selectedRecord}
+        columns={schema?.columns || []}
+        primaryKeys={primaryKeyCols}
+        tableName={tableName}
+        databaseId={databaseId}
+        canEdit={canUpdate}
+        canDelete={canDelete}
         onEdit={(rec) => {
           setDetailDrawerOpen(false);
           handleOpenEdit(rec);
         }}
-        onDelete={handleDeleteRecord}
+        onDelete={(rec) => {
+          setDetailDrawerOpen(false);
+          handleDeleteRecord(rec);
+        }}
       />
 
       <DynamicRowModal
         open={editModalOpen}
         onClose={() => setEditModalOpen(false)}
         record={recordToEdit}
+        columns={schema?.columns || []}
+        primaryKeys={primaryKeyCols}
+        tableName={tableName}
         onSave={handleSaveRecord}
       />
     </div>
