@@ -296,11 +296,25 @@ export const TableDataBrowserPage: React.FC = () => {
       return;
     }
 
+    const isProduction = database?.environment === 'Production' || database?.name?.toLowerCase().includes('prod') || databaseId?.toLowerCase().includes('prod');
+
     Modal.confirm({
       title: language === 'vi' ? `Xác nhận xóa ${selectedRowKeys.length} bản ghi đã chọn?` : `Confirm delete ${selectedRowKeys.length} selected records?`,
       icon: <ExclamationCircleOutlined style={{ color: '#ef4444' }} />,
       content: (
         <div>
+          {isProduction && (
+            <div style={{ backgroundColor: '#fef2f2', border: '1px solid #f87171', borderRadius: 6, padding: '8px 12px', marginBottom: 12 }}>
+              <Text strong style={{ color: '#b91c1c' }}>
+                {language === 'vi' ? '⚠️ CẢNH BÁO MÔI TRƯỜNG PRODUCTION' : '⚠️ PRODUCTION ENVIRONMENT WARNING'}
+              </Text>
+              <div style={{ fontSize: 12, color: '#991b1b', marginTop: 4 }}>
+                {language === 'vi'
+                  ? 'Bạn đang thao tác trên database Production. Thao tác xóa dữ liệu sẽ ảnh hưởng trực tiếp tới môi trường vận hành thực tế!'
+                  : 'You are operating on a live Production database. Deleted data cannot be recovered!'}
+              </div>
+            </div>
+          )}
           <p>
             {language === 'vi'
               ? `Bạn chuẩn bị xóa ${selectedRowKeys.length} bản ghi khỏi bảng dbo.${tableName}.`
@@ -501,11 +515,24 @@ export const TableDataBrowserPage: React.FC = () => {
             label: <span style={{ color: canDelete ? '#ef4444' : '#94a3b8' }}>{t.table.deleteRow}</span>,
             disabled: !canDelete,
             onClick: () => {
+              const isProduction = database?.environment === 'Production' || database?.name?.toLowerCase().includes('prod') || databaseId?.toLowerCase().includes('prod');
               Modal.confirm({
                 title: t.table.deleteConfirmTitle,
                 icon: <ExclamationCircleOutlined style={{ color: '#ef4444' }} />,
                 content: (
                   <div>
+                    {isProduction && (
+                      <div style={{ backgroundColor: '#fef2f2', border: '1px solid #f87171', borderRadius: 6, padding: '8px 12px', marginBottom: 12 }}>
+                        <Text strong style={{ color: '#b91c1c' }}>
+                          {language === 'vi' ? '⚠️ CẢNH BÁO MÔI TRƯỜNG PRODUCTION' : '⚠️ PRODUCTION ENVIRONMENT WARNING'}
+                        </Text>
+                        <div style={{ fontSize: 12, color: '#991b1b', marginTop: 4 }}>
+                          {language === 'vi'
+                            ? 'Bản ghi sẽ bị xóa vĩnh viễn khỏi môi trường live production!'
+                            : 'This record will be permanently deleted from live production!'}
+                        </div>
+                      </div>
+                    )}
                     <p>
                       {language === 'vi'
                         ? `Bạn có chắc chắn muốn xóa bản ghi ${rowId} khỏi bảng dbo.${tableName}?`
@@ -553,9 +580,34 @@ export const TableDataBrowserPage: React.FC = () => {
             <Tag color="blue" style={{ fontWeight: 600 }}>
               {total.toLocaleString()} {t.table.rowCount}
             </Tag>
-            <Tag color="emerald" style={{ fontWeight: 600 }}>
-              RBAC Guarded
-            </Tag>
+            {capabilities ? (
+              capabilities.isWritable ? (
+                <Tag color="green" style={{ fontWeight: 600 }}>
+                  {language === 'vi' ? 'Có thể chỉnh sửa' : 'Editable'}
+                </Tag>
+              ) : capabilities.reason?.toLowerCase().includes('read-only') ? (
+                <Tooltip title={capabilities.reason}>
+                  <Tag color="red" style={{ fontWeight: 600 }}>
+                    {language === 'vi' ? 'Chế độ Chỉ Đọc (Write Disabled)' : 'Write Disabled'}
+                  </Tag>
+                </Tooltip>
+              ) : (
+                <Tooltip title={capabilities.reason}>
+                  <Tag color="orange" style={{ fontWeight: 600 }}>
+                    {language === 'vi' ? 'Chỉ Đọc (Read Only)' : 'Read Only'}
+                  </Tag>
+                </Tooltip>
+              )
+            ) : (
+              <Tag color="emerald" style={{ fontWeight: 600 }}>
+                RBAC Guarded
+              </Tag>
+            )}
+            {capabilities?.hasRowVersion && (
+              <Tag color="purple" style={{ fontWeight: 600 }}>
+                RowVersion Concurrency
+              </Tag>
+            )}
           </Space>
         }
         extra={

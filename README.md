@@ -2,9 +2,9 @@
 
 DBHub là nền tảng quản trị cơ sở dữ liệu doanh nghiệp (SQL Server) thông qua giao diện Web hiện đại, hiệu năng cao, trực quan và chuẩn Data-dense. 
 
-Dự án bao gồm hai phần:
+Dự án bao gồm:
 - **Frontend**: Xây dựng bằng **React + TypeScript + Vite + Ant Design**, thiết kế theo tiêu chuẩn của các nền tảng quản trị cao cấp (Azure Portal, Vercel Dashboard, SSMS) kèm hỗ trợ đa ngôn ngữ Tiếng Việt (`vi_VN`) & English.
-- **Backend (Phase 2)**: Xây dựng bằng **ASP.NET Core 10 Web API + Dapper + Microsoft.Data.SqlClient** kết nối trực tiếp đến **SQL Server**, hoạt động ở chế độ **Read-Only** bảo mật cao với cơ chế phòng thủ SQL Injection toàn diện.
+- **Backend**: Xây dựng bằng **ASP.NET Core 10 Web API + Dapper + Microsoft.Data.SqlClient**, tích hợp hệ thống xác thực bảo mật JWT, phân quyền tài nguyên RBAC chi tiết và cơ chế **Dynamic Generic CRUD** hoàn toàn dựa trên metadata của SQL Server.
 
 ---
 
@@ -44,91 +44,127 @@ npm run dev
 ```
 
 Ứng dụng Frontend sẽ chạy tại địa chỉ: `http://localhost:3000`.
-
-Vite dev server đã được cấu hình tự động proxy các request `/api/*` tới `http://localhost:5000`.
+Vite dev server tự động proxy các request `/api/*` tới backend `http://localhost:5000`.
 
 ---
 
 ## 3. Kiến trúc hệ thống (Architecture)
 
 ```text
-React 18 + Vite (Port 3000)
+React 18 + TypeScript + Ant Design v5 (Port 3000)
        │
-       │ HTTP / JSON (Proxy /api)
+       │ HTTP / JSON (Proxy /api) kèm JWT Bearer Token
        ▼
 ASP.NET Core 10 Web API (Port 5000)
-  ├── Controllers
-  │    ├── DatabaseConnectionsController (/api/database-connections)
-  │    ├── DatabasesController (/api/connections/{id}/databases)
-  │    ├── MetadataController (/api/connections/{id}/databases/{db}/...)
-  │    ├── TableDataController (/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/rows)
-  │    └── HealthController (/health, /api/health)
+  ├── Middleware & Security
+  │    ├── JwtAuthentication (Access Token + Refresh Token Rotation)
+  │    ├── GlobalExceptionFilter (Map SQL Server error codes: 2601, 547, 8152, 515, 1205)
+  │    ├── SqlIdentifierValidator (Whitelist Regex & Strict Quoting [schema].[table])
+  │    └── PermissionService (Resource-Level RBAC: Connection / Database / Table scope)
   │
-  ├── Services & Infrastructure
-  │    ├── SqlIdentifierValidator (Whitelist Regex & SQL Injection Defense)
-  │    ├── SqlConnectionFactory (SqlConnectionStringBuilder)
-  │    ├── SqlServerMetadataService (System catalog views + MemoryCache)
-  │    ├── TableDataQueryService (OFFSET FETCH Paging, Sorting & Dynamic Filters)
-  │    └── JsonDatabaseConnectionStore (Persistent App_Data/connections.json)
+  ├── Dynamic CRUD Engine
+  │    ├── SqlServerMetadataService (Columns, PK, Precision, Scale, Computed, RowVersion)
+  │    ├── DynamicCrudSqlBuilder (100% Parameterized queries, No Raw SQL from Client)
+  │    ├── SqlValueConverter (Type conversion, MaxLength, Decimal scale, Default omission)
+  │    ├── DynamicCrudService (Atomic SqlTransaction, Single-row affected check, No-Op check)
+  │    └── AuditService (Before/After diffs, Sensitive column masking: password, secret, token)
   │
-  └── SQL Server Instance
-       ├── System Catalogs (sys.databases, sys.tables, sys.columns, sys.indexes, sys.foreign_keys)
-       └── User Tables & Views
+  └── Database Layer
+       ├── App Database: SQLite (Users, Roles, Permissions, Refresh Tokens, Audit Events)
+       └── Target Database: SQL Server 2016-2025 / Azure SQL
 ```
 
 ---
 
-## 4. Các tính năng chính của Phase 2 (Read-Only Integration)
+## 4. Các tính năng cốt lõi theo giai đoạn
 
-1. **Quản lý kết nối SQL Server (Database Connections)**:
-   - Thêm cấu hình kết nối mới: Server, Port, Database, Authentication (SQL Server / Windows), Username, Password, SSL Encrypt, Trust Server Certificate.
-   - Lưu trữ danh sách kết nối an toàn (mật khẩu không bao giờ được trả về API hay xuất ra log).
-   - **Đo độ trễ thực tế (Real Latency Measurement)**: Test connection trực tiếp với SQL Server bằng `Stopwatch` và trả về thời gian phản hồi (ms) cùng phiên bản SQL Server.
-2. **Khám phá Metadata (Database Explorer)**:
-   - Liệt kê danh sách database người dùng (loại trừ các database hệ thống như `master`, `tempdb`, `model`, `msdb`).
-   - Liệt kê toàn bộ Tables (kèm thống kê số dòng `RowCount`), Views, Stored Procedures.
-   - Truy vấn chi tiết cấu trúc bảng: Columns (Tên, DataType, MaxLength, Nullable, Primary Key, Identity), Indexes (Clustered/Non-Clustered, Unique, Columns), Relationships (Foreign Keys).
-3. **Truy vấn dữ liệu bảng (Table Data Viewer)**:
-   - Phân trang phía Server (`OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY`).
-   - Sắp xếp động theo bất kỳ cột nào (`ORDER BY [Column] ASC/DESC`).
-   - Tìm kiếm toàn văn nhanh (Global Search across text columns).
-   - Bộ lọc có cấu trúc (Filter Builder: equals, contains, startsWith, >, <, between, isTrue, isFalse, dates...).
-4. **Phòng thủ SQL Injection nghiêm ngặt**:
-   - Mọi định danh (`database`, `schema`, `table`, `column`, `sortDirection`) đều được kiểm tra qua `SqlIdentifierValidator` với regex whitelist nghiêm ngặt trước khi quote `[ ]`.
-   - 100% giá trị tìm kiếm và bộ lọc được chuyển thành `Dapper.DynamicParameters`. Không sử dụng phép ghép chuỗi thô.
-   - Giới hạn kích thước trang (`PageSize` từ 1 đến 500 dòng).
-5. **Chế độ Chỉ đọc (Read-Only Enforcement)**:
-   - Tuyệt đối không hỗ trợ `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, hoặc thực thi arbitrary SQL trong Phase này.
-   - Frontend hiển thị nhãn `Phase 2: Read-Only` và ngăn chặn các hành vi ghi dữ liệu lên database thật.
-6. **Chế độ dữ liệu linh hoạt (Fallback & Toggle)**:
-   - Cấu hình qua biến môi trường `.env` (`VITE_DATA_SOURCE=api` hoặc `VITE_DATA_SOURCE=mock`).
-   - Khi kết nối backend gặp gián đoạn hoặc chưa có máy chủ SQL Server thật, hệ thống tự động fallback về bộ mock data phong phú (`NhanVienDaiThanh` 120+ dòng, 8 databases mẫu) giúp demo không bị gián đoạn.
+### Phase 2: SQL Server Read-Only Foundation
+- **Quản lý kết nối**: Cấu hình SQL Server, đo độ trễ mạng thực tế (`Stopwatch`), mã hóa mật khẩu an toàn.
+- **Khám phá Metadata**: Duyệt cây đối tượng (Databases, Tables, Views, Stored Procedures, Columns, Indexes, Foreign Keys).
+- **Table Data Browser**: Phân trang Server-side (`OFFSET FETCH`), tìm kiếm toàn văn, bộ lọc đa điều kiện, sắp xếp động.
+- **SQL Injection Defense**: Whitelist regex định danh, 100% tham số hóa qua Dapper, không bao giờ dùng chuỗi thô.
+
+### Phase 3: Authentication + JWT + RBAC
+- **Xác thực an toàn**: Đăng nhập, đăng xuất, JWT Access Token (ngắn hạn) + Refresh Token (bảo vệ bằng rotation và thu hồi).
+- **Phân quyền RBAC đa cấp**: Phân quyền hệ thống và phân quyền theo phạm vi tài nguyên (Resource Scope: Connection, Database, Table).
+- **Audit Logging**: Ghi nhận toàn bộ thao tác đăng nhập, làm mới token, truy cập tài nguyên vào bảng kiểm toán.
+
+### Phase 4: Dynamic Generic CRUD Engine
+- **Thực thi CRUD động**: `INSERT`, `UPDATE`, `DELETE`, và `Bulk Delete` hoạt động trên bất kỳ bảng SQL Server nào mà không cần viết code riêng cho từng bảng.
+- **Dynamic Ant Design Form**:
+  - Tự động sinh giao diện nhập liệu từ metadata cột (Input, InputNumber, Switch, DatePicker, Select/Lookup).
+  - Tự động đánh dấu trường bắt buộc (`Nullable = false`).
+  - Giới hạn độ dài nhập liệu dựa trên `MaxLength`.
+  - Validate số chữ số nguyên và thập phân theo `Precision` và `Scale` của SQL Server.
+- **Bảo vệ toàn vẹn dữ liệu & Ràng buộc an toàn**:
+  - **Chỉ bảng vật lý (Base Tables)**: Không cho phép thao tác ghi trên Views.
+  - **Bắt buộc Primary Key**: Bảng phải có Primary Key để bảo đảm xác định chính xác dòng dữ liệu.
+  - **Khóa chuyển đổi (AllowWrite Toggle)**: Nếu kết nối tắt `AllowWrite`, mọi thao tác ghi đều bị chặn với mã lỗi `WRITE_DISABLED`.
+  - **Bảo vệ bảng hệ thống**: Cấu hình `DynamicCrud:ProtectedTables` ngăn chặn chỉnh sửa trực tiếp các bảng nhạy cảm.
+  - **Bảo vệ cột đặc biệt**: Tự động bỏ qua các cột `IsIdentity`, `IsComputed`, và `IsRowVersion` khi ghi; tự động tận dụng `DEFAULT` constraint của SQL Server khi người dùng không truyền giá trị.
+  - **Single Row Affected Check**: Mọi thao tác UPDATE và DELETE đơn dòng kiểm tra chặt chẽ `AffectedRows == 1`. Nếu là 0 hoặc > 1, transaction lập tức rollback và ném lỗi an toàn.
+  - **No-Op Update Detection**: Tự động so sánh dữ liệu mới và cũ bằng `AreValuesEqual`. Nếu không có trường nào thay đổi, hệ thống trả về thành công ngay mà không tốn lệnh SQL UPDATE và không sinh log rác.
+  - **Optimistic Concurrency**: Hỗ trợ kiểm tra phiên bản dòng dữ liệu thông qua cột kiểu `rowversion` / `timestamp`. Nếu dữ liệu đã bị thay đổi bởi người dùng khác, hệ thống báo lỗi `CONCURRENCY_CONFLICT` (409).
+  - **Xóa hàng loạt (Bulk Delete)**: Giới hạn an toàn tối đa 100 dòng mỗi mẻ, bọc trong giao dịch nguyên tử.
+  - **Cảnh báo môi trường Production**: Hiển thị hộp thoại cảnh báo nghiêm ngặt khi thực hiện thao tác xóa trên các cơ sở dữ liệu Production.
+  - **Nhật ký Before / After**: Ghi nhận chi tiết snapshot trước và sau khi sửa/xóa vào bảng Audit, tự động che mờ (mask) các trường nhạy cảm như mật khẩu, token, secret.
 
 ---
 
-## 5. Danh sách API Endpoints chính
+## 5. Bảng ánh xạ kiểu dữ liệu (SQL Server Data Types)
 
+| Kiểu dữ liệu SQL Server | Kiểm tra & Chuyển đổi | Thành phần giao diện (Frontend) |
+|---|---|---|
+| `nvarchar`, `varchar`, `nchar`, `char`, `text` | Kiểm tra MaxLength, Trim chuỗi | `Input` / `Input.TextArea` |
+| `int`, `bigint`, `smallint`, `tinyint` | Parse số nguyên | `InputNumber` (step = 1) |
+| `decimal`, `numeric`, `money`, `smallmoney` | Parse số thập phân, kiểm tra Precision & Scale | `InputNumber` (phù hợp scale) |
+| `float`, `real` | Parse số thực | `InputNumber` |
+| `bit` | Chuyển đổi boolean (`true`/`false`, `1`/`0`) | `Switch` |
+| `date`, `datetime`, `datetime2`, `smalldatetime` | Parse ISO-8601 DateTime | `DatePicker` |
+| `time` | Parse TimeSpan | `TimePicker` |
+| `uniqueidentifier` | Validate định dạng `Guid` | `Input` (Placeholder UUID) |
+| `varbinary`, `binary`, `image` | Parse Base64 / Hex | `Input` |
+| `rowversion`, `timestamp` | Đọc dạng Hex string, readonly | Không cho phép nhập, dùng cho Concurrency |
+
+---
+
+## 6. Danh sách API Endpoints chính
+
+### Phase 2: Connections & Explorer
 | Phương thức | Endpoint | Mô tả |
 |---|---|---|
-| `GET` | `/health` hoặc `/api/health` | Health check hệ thống |
 | `GET` | `/api/database-connections` | Lấy danh sách kết nối (ẩn mật khẩu) |
 | `POST` | `/api/database-connections` | Tạo mới cấu hình kết nối SQL Server |
-| `GET` | `/api/database-connections/{id}` | Lấy chi tiết 1 kết nối |
-| `DELETE` | `/api/database-connections/{id}` | Xóa 1 cấu hình kết nối |
-| `POST` | `/api/database-connections/test` | Kiểm tra kết nối và đo latency |
-| `POST` | `/api/database-connections/{id}/test` | Kiểm tra lại kết nối đã lưu |
-| `GET` | `/api/connections/{id}/databases` | Danh sách database trên server |
-| `GET` | `/api/connections/{id}/databases/{db}/tables` | Danh sách bảng trong database |
-| `GET` | `/api/connections/{id}/databases/{db}/views` | Danh sách views trong database |
-| `GET` | `/api/connections/{id}/databases/{db}/procedures` | Danh sách stored procedures |
-| `GET` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/columns` | Cấu trúc cột |
-| `GET` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/indexes` | Danh sách indexes |
-| `GET` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/relationships` | Danh sách Foreign Keys |
+| `POST` | `/api/database-connections/test` | Kiểm tra kết nối và đo độ trễ |
+| `GET` | `/api/connections/{id}/databases` | Danh sách database trên máy chủ |
+| `GET` | `/api/connections/{id}/databases/{db}/tables` | Danh sách bảng dữ liệu |
 | `POST` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/rows/query` | Lấy dữ liệu phân trang, lọc, sắp xếp |
+
+### Phase 3: Auth & RBAC
+| Phương thức | Endpoint | Mô tả |
+|---|---|---|
+| `POST` | `/api/auth/login` | Đăng nhập hệ thống, nhận JWT Access Token |
+| `POST` | `/api/auth/refresh-token` | Làm mới Access Token bằng Refresh Token |
+| `GET` | `/api/auth/me` | Lấy thông tin user hiện tại và danh sách quyền |
+| `GET` | `/api/users` | Quản lý người dùng hệ thống |
+| `GET` | `/api/roles` | Quản lý vai trò và phân quyền |
+| `GET` | `/api/audit-logs` | Xem nhật ký kiểm toán hệ thống |
+
+### Phase 4: Dynamic Generic CRUD
+| Phương thức | Endpoint | Mô tả |
+|---|---|---|
+| `GET` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/capabilities` | Kiểm tra quyền ghi và điều kiện của bảng |
+| `POST` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/rows/by-key` | Lấy chi tiết 1 dòng dữ liệu theo Primary Key |
+| `POST` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/rows` | Thêm mới dòng dữ liệu (`INSERT`) |
+| `PUT`, `PATCH`| `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/rows` | Cập nhật dòng dữ liệu (`UPDATE`) |
+| `DELETE` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/rows` | Xóa dòng dữ liệu (`DELETE`) |
+| `POST` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/rows/bulk-delete` | Xóa hàng loạt dòng dữ liệu (tối đa 100 dòng) |
+| `GET` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/lookups/{column}` | Lấy danh sách gợi ý dữ liệu cho cột Foreign Key |
+| `GET` | `/api/connections/{id}/databases/{db}/tables/{sch}/{tbl}/rows/history` | Xem lịch sử thay đổi Before/After của dòng |
 
 ---
 
-## 6. Kiểm thử tự động (Unit Tests)
+## 7. Kiểm thử tự động (Unit Tests)
 
 Chạy bộ kiểm thử tự động của Backend:
 
@@ -136,14 +172,15 @@ Chạy bộ kiểm thử tự động của Backend:
 dotnet test backend/DBHub.slnx
 ```
 
-Bộ unit tests trong `DBHub.Tests` bao quát:
-- Whitelist validation cho SQL identifier hợp lệ (chữ cái, số, `@`, `#`, `_`).
-- Chặn đứng các nguy cơ SQL Injection (chứa dấu chấm phẩy, comment `--`, `/* */`, quotes, từ khóa nguy hiểm `DROP TABLE`, `1=1; SELECT...`).
-- Kiểm tra chuẩn hóa hướng sắp xếp (`ASC`/`DESC`).
-- Kiểm tra ràng buộc phân trang (bounds: Page $\ge 1$, PageSize từ 1 đến 500).
+Bộ unit tests trong `DBHub.Tests` (78 tests) bao quát:
+- Whitelist validation cho SQL identifier hợp lệ (chống SQL Injection).
+- Trình sinh câu lệnh động `DynamicCrudSqlBuilder` (Insert, Update, Delete, Bulk Delete, Lookup, Select explicit columns).
+- Trình chuyển đổi và thẩm định kiểu dữ liệu `SqlValueConverter` (kiểm tra độ dài, nullability, precision/scale, identity/default omission).
+- Cơ chế phát hiện No-Op Update `AreValuesEqual`.
+- Xử lý mã lỗi SQL Server trong `GlobalExceptionFilter` (2601 Duplicate Key, 547 FK Violation, 8152 Data Too Long, 515 Null Not Allowed, 1205 Deadlock).
 
 ---
 
-## 7. Giấy phép (License)
+## 8. Giấy phép (License)
 
 Dự án phát triển nội bộ cho doanh nghiệp – Bản quyền thuộc về đội ngũ phát triển DBHub.
