@@ -10,14 +10,39 @@ import {
 } from '@/mocks/tables.mock';
 import { mockNhanVienList, NhanVienRecord } from '@/mocks/nhanvien.mock';
 import { applyFilters } from '@/utils/filterEvaluator';
+import { databaseService } from './databaseService';
+import { databaseApi } from './api/databaseApi';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function parseSchemaAndTable(tableName: string): { schema: string; table: string } {
+  if (tableName.includes('.')) {
+    const parts = tableName.split('.');
+    return { schema: parts[0], table: parts.slice(1).join('.') };
+  }
+  return { schema: 'dbo', table: tableName };
+}
+
 class TableService {
   private nhanvienData: NhanVienRecord[] = [...mockNhanVienList];
+  private isApiMode = import.meta.env.VITE_DATA_SOURCE !== 'mock';
 
   async getDatabaseObjects(databaseId: string): Promise<DatabaseObjectItem[]> {
-    await delay(200);
+    if (this.isApiMode) {
+      try {
+        const conn = await databaseService.getDatabase(databaseId);
+        if (conn && conn.databaseName) {
+          const objects = await databaseApi.getDatabaseObjects(conn.id, conn.databaseName);
+          if (objects && objects.length > 0) {
+            return objects;
+          }
+        }
+      } catch (err) {
+        console.warn('API getDatabaseObjects failed, falling back to mock objects:', err);
+      }
+    }
+
+    await delay(150);
     return mockDatabaseObjects[databaseId] || mockDatabaseObjects['pmsc'] || [];
   }
 
@@ -25,13 +50,29 @@ class TableService {
     databaseId: string,
     tableName: string
   ): Promise<TableSchema> {
-    await delay(150);
+    if (this.isApiMode) {
+      try {
+        const conn = await databaseService.getDatabase(databaseId);
+        if (conn && conn.databaseName) {
+          const { schema, table } = parseSchemaAndTable(tableName);
+          const s = await databaseApi.getTableSchema(conn.id, conn.databaseName, schema, table);
+          if (s && s.columns && s.columns.length > 0) {
+            return s;
+          }
+        }
+      } catch (err) {
+        console.warn('API getTableSchema failed, falling back to mock schema:', err);
+      }
+    }
+
+    await delay(100);
     if (tableName === 'NhanVienDaiThanh' || databaseId === 'pmsc') {
       return {
         ...mockNhanVienSchema,
         tableName,
       };
     }
+
     // Generic fallback schema
     return {
       databaseId,
@@ -51,11 +92,30 @@ class TableService {
   }
 
   async getTableData(
-    _databaseId: string,
+    databaseId: string,
     tableName: string,
     params: TableQueryParams
   ): Promise<TableDataResponse<any>> {
-    await delay(250);
+    if (this.isApiMode) {
+      try {
+        const conn = await databaseService.getDatabase(databaseId);
+        if (conn && conn.databaseName) {
+          const { schema, table } = parseSchemaAndTable(tableName);
+          const result = await databaseApi.getTableData(
+            conn.id,
+            conn.databaseName,
+            schema,
+            table,
+            params
+          );
+          return result;
+        }
+      } catch (err) {
+        console.warn('API getTableData failed, falling back to mock data:', err);
+      }
+    }
+
+    await delay(200);
     let items = [...this.nhanvienData];
 
     // 1. Search across text fields
@@ -111,11 +171,16 @@ class TableService {
   }
 
   async createRow(
-    _databaseId: string,
-    _tableName: string,
+    databaseId: string,
+    tableName: string,
     row: Partial<NhanVienRecord>
   ): Promise<NhanVienRecord> {
-    await delay(300);
+    const conn = await databaseService.getDatabase(databaseId);
+    if (conn && conn.id !== 'pmsc') {
+      throw new Error('Chế độ chỉ đọc (Phase 2: Read-Only). Thao tác ghi sẽ được hỗ trợ ở Phase 3.');
+    }
+
+    await delay(200);
     const newRecord: NhanVienRecord = {
       MaNhanVien: row.MaNhanVien || `AD${Math.floor(40000 + Math.random() * 10000)}`,
       Name: row.Name || 'Nhân Viên Mới',
@@ -135,12 +200,17 @@ class TableService {
   }
 
   async updateRow(
-    _databaseId: string,
-    _tableName: string,
+    databaseId: string,
+    tableName: string,
     key: string,
     row: Partial<NhanVienRecord>
   ): Promise<NhanVienRecord> {
-    await delay(300);
+    const conn = await databaseService.getDatabase(databaseId);
+    if (conn && conn.id !== 'pmsc') {
+      throw new Error('Chế độ chỉ đọc (Phase 2: Read-Only). Thao tác ghi sẽ được hỗ trợ ở Phase 3.');
+    }
+
+    await delay(200);
     const idx = this.nhanvienData.findIndex((r) => r.MaNhanVien === key);
     if (idx >= 0) {
       this.nhanvienData[idx] = {
@@ -153,11 +223,16 @@ class TableService {
   }
 
   async deleteRow(
-    _databaseId: string,
-    _tableName: string,
+    databaseId: string,
+    tableName: string,
     key: string
   ): Promise<boolean> {
-    await delay(300);
+    const conn = await databaseService.getDatabase(databaseId);
+    if (conn && conn.id !== 'pmsc') {
+      throw new Error('Chế độ chỉ đọc (Phase 2: Read-Only). Thao tác ghi sẽ được hỗ trợ ở Phase 3.');
+    }
+
+    await delay(200);
     this.nhanvienData = this.nhanvienData.filter((r) => r.MaNhanVien !== key);
     return true;
   }

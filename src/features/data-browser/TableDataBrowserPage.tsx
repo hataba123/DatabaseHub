@@ -100,11 +100,35 @@ export const TableDataBrowserPage: React.FC = () => {
   ];
   const [columnConfig, setColumnConfig] = useState<ColumnItem[]>(defaultColumns);
 
+  const primaryKeyCol = useMemo(() => {
+    return (
+      schema?.columns?.find((c) => c.isPrimaryKey)?.name ||
+      schema?.columns?.[0]?.name ||
+      'MaNhanVien'
+    );
+  }, [schema]);
+
   // Fetch database info & explorer objects
   useEffect(() => {
     databaseService.getDatabase(databaseId).then(setDatabase);
     tableService.getDatabaseObjects(databaseId).then(setDbObjects);
-    tableService.getTableSchema(databaseId, tableName).then(setSchema);
+    tableService.getTableSchema(databaseId, tableName).then((s) => {
+      setSchema(s);
+      if (tableName === 'NhanVienDaiThanh') {
+        setColumnConfig(defaultColumns);
+        setSortField('MaNhanVien');
+      } else if (s && s.columns && s.columns.length > 0) {
+        const pk = s.columns.find((c) => c.isPrimaryKey);
+        const dynamicCols: ColumnItem[] = s.columns.map((c, idx) => ({
+          key: c.name,
+          title: c.name,
+          visible: idx < 8,
+          required: c.isPrimaryKey,
+        }));
+        setColumnConfig(dynamicCols);
+        setSortField(pk?.name || s.columns[0].name);
+      }
+    });
   }, [databaseId, tableName]);
 
   // Fetch Table Data
@@ -138,6 +162,16 @@ export const TableDataBrowserPage: React.FC = () => {
     message.success(language === 'vi' ? 'Đã làm mới dữ liệu' : 'Data refreshed');
   };
 
+  const handleTableChange = (_pag: any, _filt: any, sorter: any) => {
+    if (sorter && sorter.field) {
+      setSortField(String(sorter.field));
+      setSortOrder(sorter.order || null);
+    } else {
+      setSortField(undefined);
+      setSortOrder(null);
+    }
+  };
+
   const handleExport = () => {
     message.loading({ content: language === 'vi' ? 'Đang xuất file Excel...' : 'Exporting records to Excel...', key: 'export' });
     setTimeout(() => {
@@ -162,11 +196,27 @@ export const TableDataBrowserPage: React.FC = () => {
   };
 
   const handleOpenEdit = (record: any) => {
+    if (databaseId !== 'pmsc') {
+      message.info(
+        language === 'vi'
+          ? 'Phase 2 đang ở chế độ Chỉ đọc (Read-Only). Thao tác cập nhật bản ghi sẽ được hỗ trợ ở Phase 3.'
+          : 'Phase 2 is in Read-Only mode. Updating records will be supported in Phase 3.'
+      );
+      return;
+    }
     setRecordToEdit(record);
     setEditModalOpen(true);
   };
 
   const handleOpenCreate = () => {
+    if (databaseId !== 'pmsc') {
+      message.info(
+        language === 'vi'
+          ? 'Phase 2 đang ở chế độ Chỉ đọc (Read-Only). Thao tác thêm mới bản ghi sẽ được hỗ trợ ở Phase 3.'
+          : 'Phase 2 is in Read-Only mode. Adding records will be supported in Phase 3.'
+      );
+      return;
+    }
     setRecordToEdit(null);
     setEditModalOpen(true);
   };
@@ -184,6 +234,14 @@ export const TableDataBrowserPage: React.FC = () => {
   };
 
   const handleDeleteRecord = async (key: string) => {
+    if (databaseId !== 'pmsc') {
+      message.info(
+        language === 'vi'
+          ? 'Phase 2 đang ở chế độ Chỉ đọc (Read-Only). Thao tác xóa bản ghi sẽ được hỗ trợ ở Phase 3.'
+          : 'Phase 2 is in Read-Only mode. Deleting records will be supported in Phase 3.'
+      );
+      return;
+    }
     await tableService.deleteRow(databaseId, tableName, key);
     fetchData();
   };
@@ -285,6 +343,34 @@ export const TableDataBrowserPage: React.FC = () => {
             dataIndex: col.key,
             key: col.key,
             width: 140,
+            sorter: true,
+            sortOrder: sortField === col.key ? sortOrder : null,
+          });
+          break;
+        default:
+          cols.push({
+            title: col.title,
+            dataIndex: col.key,
+            key: col.key,
+            width: 150,
+            sorter: true,
+            sortOrder: sortField === col.key ? sortOrder : null,
+            render: (val: any) => {
+              if (val === null || val === undefined) {
+                return <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>NULL</span>;
+              }
+              if (typeof val === 'boolean') {
+                return (
+                  <Tag color={val ? 'green' : 'default'} style={{ margin: 0 }}>
+                    {val ? (language === 'vi' ? 'Có' : 'True') : (language === 'vi' ? 'Không' : 'False')}
+                  </Tag>
+                );
+              }
+              if (typeof val === 'object') {
+                return <span className="font-mono text-xs">{JSON.stringify(val)}</span>;
+              }
+              return <span>{String(val)}</span>;
+            },
           });
           break;
       }
@@ -298,6 +384,7 @@ export const TableDataBrowserPage: React.FC = () => {
       width: 70,
       align: 'center' as const,
       render: (_: any, record: any) => {
+        const rowId = String(record[primaryKeyCol] ?? record.id ?? record.MaNhanVien ?? '');
         const menuItems = [
           {
             key: 'view',
@@ -322,9 +409,9 @@ export const TableDataBrowserPage: React.FC = () => {
             onClick: () => {
               Modal.confirm({
                 title: t.table.deleteConfirmTitle,
-                content: language === 'vi' ? `Bạn có chắc chắn muốn xóa bản ghi ${record.MaNhanVien}?` : `Are you sure you want to delete ${record.MaNhanVien}?`,
+                content: language === 'vi' ? `Bạn có chắc chắn muốn xóa bản ghi ${rowId}?` : `Are you sure you want to delete ${rowId}?`,
                 okType: 'danger',
-                onOk: () => handleDeleteRecord(record.MaNhanVien),
+                onOk: () => handleDeleteRecord(rowId),
               });
             },
           },
@@ -355,7 +442,16 @@ export const TableDataBrowserPage: React.FC = () => {
           { title: t.database.tables, path: `/databases/${databaseId}` },
           { title: tableName },
         ]}
-        badge={<Tag color="blue" style={{ fontWeight: 600 }}>326,842 {t.table.rowCount}</Tag>}
+        badge={
+          <Space>
+            <Tag color="blue" style={{ fontWeight: 600 }}>
+              {total.toLocaleString()} {t.table.rowCount}
+            </Tag>
+            <Tag color="cyan" style={{ fontWeight: 600 }}>
+              Phase 2: Read-Only
+            </Tag>
+          </Space>
+        }
         extra={
           <Space>
             <Button
@@ -530,7 +626,10 @@ export const TableDataBrowserPage: React.FC = () => {
                 columns={tableColumns}
                 dataSource={data}
                 loading={loading}
-                rowKey="MaNhanVien"
+                rowKey={(record) =>
+                  String(record?.[primaryKeyCol] ?? record?.id ?? record?.MaNhanVien ?? Math.random())
+                }
+                onChange={handleTableChange}
                 density={density}
                 scrollX={1100}
                 onRowClick={handleRowClick}

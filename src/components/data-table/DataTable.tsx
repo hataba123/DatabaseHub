@@ -19,6 +19,7 @@ interface DataTableProps<T = any> {
   emptyText?: string;
   error?: Error | null;
   onRetry?: () => void;
+  onChange?: (pagination: TablePaginationConfig, filters: any, sorter: any) => void;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -35,6 +36,7 @@ export function DataTable<T extends Record<string, any>>({
   emptyText,
   error,
   onRetry,
+  onChange,
 }: DataTableProps<T>) {
   const getDensityClass = () => {
     switch (density) {
@@ -90,6 +92,7 @@ export function DataTable<T extends Record<string, any>>({
         dataSource={dataSource}
         loading={loading}
         rowKey={rowKey}
+        onChange={onChange}
         pagination={
           pagination === false
             ? false

@@ -13,6 +13,16 @@ export default defineConfig({
   server: {
     port: 3000,
     open: false,
+    watch: {
+      ignored: ['**/backend/**', '**/.git/**'],
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   build: {
     chunkSizeWarningLimit: 1200,

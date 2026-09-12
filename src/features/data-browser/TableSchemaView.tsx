@@ -159,11 +159,11 @@ export const TableSchemaView: React.FC<TableSchemaViewProps> = ({ schema }) => {
   const items = [
     {
       key: 'columns',
-      label: `Columns (${schema.columns.length})`,
+      label: `Columns (${(schema.columns || []).length})`,
       children: (
         <Table
           size="small"
-          dataSource={schema.columns}
+          dataSource={schema.columns || []}
           columns={columnColumns}
           pagination={false}
           rowKey="name"
@@ -173,11 +173,11 @@ export const TableSchemaView: React.FC<TableSchemaViewProps> = ({ schema }) => {
     },
     {
       key: 'indexes',
-      label: `Indexes (${schema.indexes.length})`,
+      label: `Indexes (${(schema.indexes || []).length})`,
       children: (
         <Table
           size="small"
-          dataSource={schema.indexes}
+          dataSource={schema.indexes || []}
           columns={indexColumns}
           pagination={false}
           rowKey="name"
@@ -187,11 +187,11 @@ export const TableSchemaView: React.FC<TableSchemaViewProps> = ({ schema }) => {
     },
     {
       key: 'relationships',
-      label: `Relationships (${schema.relationships.length})`,
+      label: `Relationships (${(schema.relationships || []).length})`,
       children: (
         <Table
           size="small"
-          dataSource={schema.relationships}
+          dataSource={schema.relationships || []}
           columns={relationColumns}
           pagination={false}
           rowKey="constraintName"
